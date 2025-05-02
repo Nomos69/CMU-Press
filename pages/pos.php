@@ -1,0 +1,339 @@
+<?php
+// Require authentication
+requireLogin();
+
+// Get the next transaction ID
+$query = "SELECT MAX(transaction_id) as max_id FROM transactions";
+$stmt = $db->prepare($query);
+$stmt->execute();
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$next_transaction_id = isset($row['max_id']) ? $row['max_id'] + 1 : 5789;
+
+// Initialize Transaction model for statistics
+$transaction = new Transaction($db);
+
+// Get inventory statistics
+$books = new Book($db);
+$inventory_query = "SELECT 
+    SUM(CASE WHEN stock_qty > low_stock_threshold THEN 1 ELSE 0 END) as in_stock,
+    SUM(CASE WHEN stock_qty <= low_stock_threshold AND stock_qty > 0 THEN 1 ELSE 0 END) as low_stock,
+    SUM(CASE WHEN stock_qty = 0 THEN 1 ELSE 0 END) as out_of_stock
+    FROM books";
+$stmt = $db->prepare($inventory_query);
+$stmt->execute();
+$inventory_stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Get low stock items
+$low_stock_query = "SELECT * FROM books 
+                    WHERE stock_qty <= low_stock_threshold AND stock_qty > 0 
+                    ORDER BY stock_qty ASC LIMIT 3";
+$stmt = $db->prepare($low_stock_query);
+$stmt->execute();
+$low_stock_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get pending book requests
+$book_requests = new BookRequest($db);
+$requests_query = "SELECT * FROM book_requests 
+                  WHERE status = 'pending' 
+                  ORDER BY 
+                    CASE priority 
+                        WHEN 'high' THEN 1 
+                        WHEN 'medium' THEN 2 
+                        WHEN 'low' THEN 3 
+                    END, 
+                    request_date DESC 
+                  LIMIT 2";
+$stmt = $db->prepare($requests_query);
+$stmt->execute();
+$book_requests_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Count pending requests
+$pending_count = $book_requests->countPending();
+
+// Get today's stats
+$daily_stats = $transaction->getDayStats();
+$total_sales = $daily_stats['total_sales'] ? $daily_stats['total_sales'] : 0;
+$transaction_count = $daily_stats['transaction_count'] ? $daily_stats['transaction_count'] : 0;
+
+// Get books sold today
+$transaction_item = new TransactionItem($db);
+$books_sold = $transaction_item->getTotalBooksSold();
+
+// Get new customers today (we don't have the Customer model loaded here)
+$new_customers_query = "SELECT COUNT(*) as count FROM customers WHERE DATE(created_at) = CURDATE()";
+$stmt = $db->prepare($new_customers_query);
+$stmt->execute();
+$new_customers_row = $stmt->fetch(PDO::FETCH_ASSOC);
+$new_customers = $new_customers_row['count'];
+
+// Get new customers with loyalty cards
+$loyalty_query = "SELECT COUNT(*) as count FROM customers 
+                 WHERE DATE(created_at) = CURDATE() AND has_loyalty_card = 1";
+$stmt = $db->prepare($loyalty_query);
+$stmt->execute();
+$loyalty_row = $stmt->fetch(PDO::FETCH_ASSOC);
+$loyalty_customers = $loyalty_row['count'];
+
+// Get high priority book requests
+$high_priority_count = $book_requests->countHighPriority();
+
+// Get recent transactions
+$recent_transactions = $transaction->getRecent(3);
+$recent_transactions_list = [];
+while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
+    $recent_transactions_list[] = $row;
+}
+?>
+
+<section id="pos" class="tab-content active">
+    <div class="container">
+        <div class="left-column">
+            <!-- Current Transaction -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Current Transaction #<span id="transaction-id"><?php echo $next_transaction_id; ?></span></h2>
+                    <div class="transaction-options">
+                        <button class="btn-option new-transaction" data-type="new"><i class="fas fa-plus"></i> New</button>
+                        <button class="btn-option hold-transaction" data-type="hold"><i class="fas fa-pause"></i> Hold</button>
+                        <button class="btn-option apply-discount" data-type="discount"><i class="fas fa-percent"></i> Discount</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="transaction-table">
+                        <thead>
+                            <tr>
+                                <th>TITLE</th>
+                                <th>AUTHOR</th>
+                                <th>PRICE</th>
+                                <th>QTY</th>
+                                <th>TOTAL</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-items">
+                            <!-- Transaction items will be added here dynamically -->
+                        </tbody>
+                    </table>
+                    <div class="item-search">
+                        <input type="text" id="item-search" placeholder="Scan barcode or search item">
+                        <button id="add-item-btn"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="customer-field">
+                        <input type="text" id="customer-field" placeholder="Customer name or phone">
+                        <button id="add-customer-btn"><i class="fas fa-user-plus"></i></button>
+                    </div>
+                    <div class="transaction-summary">
+                        <div class="summary-row">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">$0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Tax (8%):</span>
+                            <span id="tax">$0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Discount:</span>
+                            <span id="discount">$0.00</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total:</span>
+                            <span id="total">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Payment</h2>
+                </div>
+                <div class="card-body">
+                    <div class="payment-options">
+                        <button class="payment-btn active" data-method="credit_card">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Credit Card</span>
+                        </button>
+                        <button class="payment-btn" data-method="cash">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>Cash</span>
+                        </button>
+                        <button class="payment-btn" data-method="paypal">
+                            <i class="fab fa-paypal"></i>
+                            <span>PayPal</span>
+                        </button>
+                        <button class="payment-btn" data-method="other">
+                            <i class="fas fa-ellipsis-h"></i>
+                            <span>Other</span>
+                        </button>
+                    </div>
+                    <div class="action-buttons">
+                        <button id="refund-btn" class="btn-secondary">Process Refund</button>
+                        <button id="checkout-btn" class="btn-primary">Checkout ($0.00)</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Transactions -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Recent Transactions</h2>
+                    <button id="view-all-transactions-btn" class="view-all">View All</button>
+                </div>
+                <div class="card-body">
+                    <table class="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>TIME</th>
+                                <th>CUSTOMER</th>
+                                <th>ITEMS</th>
+                                <th>TOTAL</th>
+                                <th>STATUS</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($recent_transactions_list)): ?>
+                                <tr>
+                                    <td colspan="7" class="no-data">No recent transactions.</td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($recent_transactions_list as $trans): ?>
+                                    <tr>
+                                        <td>#<?php echo $trans['transaction_id']; ?></td>
+                                        <td><?php echo date('g:i A', strtotime($trans['transaction_date'])); ?></td>
+                                        <td><?php echo $trans['customer_name'] ? htmlspecialchars($trans['customer_name']) : 'Guest'; ?></td>
+                                        <td><?php echo $trans['item_count']; ?></td>
+                                        <td><?php echo formatMoney($trans['total']); ?></td>
+                                        <td><?php echo getStatusBadge($trans['status']); ?></td>
+                                        <td>
+                                            <?php if ($trans['status'] === 'completed'): ?>
+                                                <button class="btn-link receipt-btn" data-id="<?php echo $trans['transaction_id']; ?>">Receipt</button>
+                                            <?php elseif ($trans['status'] === 'on_hold'): ?>
+                                                <button class="btn-link resume-btn" data-id="<?php echo $trans['transaction_id']; ?>">Resume</button>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-column">
+            <!-- Inventory Status -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Inventory Status</h2>
+                    <a href="index.php?tab=inventory" class="view-all">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="inventory-stats">
+                        <div class="stat-box">
+                            <span class="stat-label">In Stock</span>
+                            <span class="stat-value"><?php echo number_format($inventory_stats['in_stock']); ?></span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Low Stock</span>
+                            <span class="stat-value"><?php echo number_format($inventory_stats['low_stock']); ?></span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Out of Stock</span>
+                            <span class="stat-value"><?php echo number_format($inventory_stats['out_of_stock']); ?></span>
+                        </div>
+                    </div>
+                    <div class="search-inventory">
+                        <input type="text" id="inventory-search" placeholder="Search inventory">
+                        <button id="search-inventory-btn"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div class="low-stock-items">
+                        <?php foreach($low_stock_items as $item): ?>
+                        <div class="low-stock-item">
+                            <div class="item-info">
+                                <h3><?php echo htmlspecialchars($item['title']); ?></h3>
+                                <p><?php echo htmlspecialchars($item['author']); ?></p>
+                            </div>
+                            <div class="item-stock">
+                                <span class="remaining"><?php echo $item['stock_qty']; ?></span>
+                                <span class="remaining-label">remaining</span>
+                                <button class="reorder-btn" data-id="<?php echo $item['book_id']; ?>">Reorder</button>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button class="request-book-btn">
+                        <i class="fas fa-book"></i>
+                        Request Unavailable Book
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Pending Book Requests -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Pending Book Requests</h2>
+                    <span class="pending-count"><?php echo $pending_count; ?> Pending</span>
+                </div>
+                <div class="card-body">
+                    <?php if (empty($book_requests_list)): ?>
+                        <div class="no-data">No pending book requests.</div>
+                    <?php else: ?>
+                        <?php foreach($book_requests_list as $request): ?>
+                        <div class="book-request">
+                            <div class="request-info">
+                                <h3><?php echo htmlspecialchars($request['title']); ?></h3>
+                                <p><?php echo htmlspecialchars($request['author']); ?></p>
+                                <p class="request-date">Requested: <?php echo date('M j, Y', strtotime($request['request_date'])); ?></p>
+                            </div>
+                            <div class="request-details">
+                                <span class="priority <?php echo $request['priority']; ?>-priority">
+                                    <?php echo ucfirst($request['priority']); ?> <?php echo $request['priority'] === 'high' ? 'Priority' : ''; ?>
+                                </span>
+                                <span class="quantity">Qty: <?php echo $request['quantity']; ?></span>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    <a href="index.php?tab=book_requests" class="view-all-btn">View All Requests</a>
+                </div>
+            </div>
+            
+            <!-- Today's Stats -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>Today's Stats</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stats-row">
+                        <div class="stat-card blue">
+                            <h3>Sales</h3>
+                            <div class="stat-value">$<?php echo number_format($total_sales, 2); ?></div>
+                            <div class="stat-compare">+<?php echo $transaction_count; ?> transactions</div>
+                        </div>
+                        <div class="stat-card purple">
+                            <h3>Books Sold</h3>
+                            <div class="stat-value"><?php echo $books_sold; ?></div>
+                            <div class="stat-compare">+12% from yesterday</div>
+                        </div>
+                    </div>
+                    <div class="stats-row">
+                        <div class="stat-card green">
+                            <h3>New Customers</h3>
+                            <div class="stat-value"><?php echo $new_customers; ?></div>
+                            <div class="stat-compare"><?php echo $loyalty_customers; ?> with loyalty cards</div>
+                        </div>
+                        <div class="stat-card orange">
+                            <h3>Book Requests</h3>
+                            <div class="stat-value"><?php echo $pending_count; ?></div>
+                            <div class="stat-compare"><?php echo $high_priority_count; ?> high priority</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,267 @@
+<?php
+// Require authentication
+requireLogin();
+
+// Initialize database connection
+$database = new Database();
+$db = $database->getConnection();
+
+// Load user model
+require_once 'models/User.php';
+$user = new User($db);
+
+// Check if admin for certain settings
+$isAdmin = $_SESSION['role'] === 'admin';
+
+// Get current user details
+$currentUserId = $_SESSION['user_id'];
+$currentUser = [
+    'user_id' => $currentUserId,
+    'username' => $_SESSION['username'],
+    'name' => $_SESSION['name'],
+    'role' => $_SESSION['role']
+];
+
+// Get all users if admin
+$users = [];
+if ($isAdmin) {
+    $stmt = $db->prepare("SELECT * FROM users ORDER BY name ASC");
+    $stmt->execute();
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Get system settings
+$taxRate = defined('TAX_RATE') ? TAX_RATE : 0.08; // Default to 8%
+$appName = defined('APP_NAME') ? APP_NAME : 'Bookstore POS';
+$appVersion = defined('APP_VERSION') ? APP_VERSION : '1.0.0';
+
+// Process password change
+$passwordChanged = false;
+$passwordError = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
+    $currentPassword = $_POST['current_password'] ?? '';
+    $newPassword = $_POST['new_password'] ?? '';
+    $confirmPassword = $_POST['confirm_password'] ?? '';
+    
+    if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+        $passwordError = 'All password fields are required';
+    } else if ($newPassword !== $confirmPassword) {
+        $passwordError = 'New password and confirmation do not match';
+    } else {
+        // Verify current password and change to new one
+        $stmt = $db->prepare("SELECT password FROM users WHERE user_id = ?");
+        $stmt->bindParam(1, $currentUserId);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user && password_verify($currentPassword, $user['password'])) {
+            // Update password
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt = $db->prepare("UPDATE users SET password = ? WHERE user_id = ?");
+            $stmt->bindParam(1, $hashedPassword);
+            $stmt->bindParam(2, $currentUserId);
+            
+            if ($stmt->execute()) {
+                $passwordChanged = true;
+            } else {
+                $passwordError = 'Failed to update password';
+            }
+        } else {
+            $passwordError = 'Current password is incorrect';
+        }
+    }
+}
+?>
+
+<section id="settings" class="tab-content active">
+    <div class="container">
+        <div class="left-column">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Account Settings</h2>
+                </div>
+                <div class="card-body">
+                    <div class="settings-section">
+                        <h3>Profile Information</h3>
+                        <div class="profile-info">
+                            <div class="profile-field">
+                                <span class="field-label">Username:</span>
+                                <span class="field-value"><?php echo htmlspecialchars($currentUser['username']); ?></span>
+                            </div>
+                            <div class="profile-field">
+                                <span class="field-label">Name:</span>
+                                <span class="field-value"><?php echo htmlspecialchars($currentUser['name']); ?></span>
+                            </div>
+                            <div class="profile-field">
+                                <span class="field-label">Role:</span>
+                                <span class="field-value"><?php echo ucfirst(htmlspecialchars($currentUser['role'])); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Change Password</h3>
+                        <?php if ($passwordChanged): ?>
+                            <div class="alert alert-success">Password changed successfully!</div>
+                        <?php endif; ?>
+                        
+                        <?php if ($passwordError): ?>
+                            <div class="alert alert-danger"><?php echo $passwordError; ?></div>
+                        <?php endif; ?>
+                        
+                        <form method="post" class="password-form">
+                            <div class="form-group">
+                                <label for="current_password">Current Password</label>
+                                <input type="password" id="current_password" name="current_password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="new_password">New Password</label>
+                                <input type="password" id="new_password" name="new_password" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="confirm_password">Confirm New Password</label>
+                                <input type="password" id="confirm_password" name="confirm_password" required>
+                            </div>
+                            <button type="submit" name="change_password" class="btn-primary">Change Password</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <?php if ($isAdmin): ?>
+            <div class="card">
+                <div class="card-header">
+                    <h2>User Management</h2>
+                    <button id="add-user-btn" class="btn-primary"><i class="fas fa-plus"></i> Add User</button>
+                </div>
+                <div class="card-body">
+                    <div class="users-table-wrapper">
+                        <table class="users-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($users as $user): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($user['name']); ?></td>
+                                    <td><?php echo htmlspecialchars($user['username']); ?></td>
+                                    <td><?php echo ucfirst(htmlspecialchars($user['role'])); ?></td>
+                                    <td><?php echo date('M j, Y', strtotime($user['created_at'])); ?></td>
+                                    <td class="actions">
+                                        <button class="edit-user-btn" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-edit"></i></button>
+                                        <?php if ($user['user_id'] != $currentUserId): ?>
+                                        <button class="delete-user-btn" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-trash"></i></button>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+        
+        <div class="right-column">
+            <div class="card">
+                <div class="card-header">
+                    <h2>System Settings</h2>
+                </div>
+                <div class="card-body">
+                    <div class="settings-section">
+                        <h3>Application Information</h3>
+                        <div class="app-info">
+                            <div class="info-field">
+                                <span class="field-label">App Name:</span>
+                                <span class="field-value"><?php echo htmlspecialchars($appName); ?></span>
+                            </div>
+                            <div class="info-field">
+                                <span class="field-label">Version:</span>
+                                <span class="field-value"><?php echo htmlspecialchars($appVersion); ?></span>
+                            </div>
+                            <div class="info-field">
+                                <span class="field-label">Tax Rate:</span>
+                                <span class="field-value"><?php echo ($taxRate * 100) . '%'; ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <?php if ($isAdmin): ?>
+                    <div class="settings-section">
+                        <h3>Tax Settings</h3>
+                        <form id="tax-settings-form" class="tax-form">
+                            <div class="form-group">
+                                <label for="tax_rate">Tax Rate (%)</label>
+                                <input type="number" id="tax_rate" name="tax_rate" value="<?php echo $taxRate * 100; ?>" min="0" max="100" step="0.01">
+                            </div>
+                            <button type="submit" class="btn-primary">Save Tax Rate</button>
+                        </form>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Database Backup</h3>
+                        <div class="backup-actions">
+                            <button id="backup-btn" class="btn-secondary"><i class="fas fa-download"></i> Backup Database</button>
+                            <button id="restore-btn" class="btn-secondary"><i class="fas fa-upload"></i> Restore Database</button>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h2>About</h2>
+                </div>
+                <div class="card-body">
+                    <div class="about-content">
+                        <p><strong><?php echo htmlspecialchars($appName); ?></strong> is a comprehensive Point of Sale system designed specifically for bookstores. It provides inventory management, sales processing, customer management, and reporting features.</p>
+                        <p>Version: <?php echo htmlspecialchars($appVersion); ?></p>
+                        <p>Developed by: Bookstore POS Team</p>
+                        <p>Copyright &copy; <?php echo date('Y'); ?> Bookstore POS</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- User Add/Edit Modal Template -->
+<template id="user-template">
+    <div class="user-form">
+        <div class="form-group">
+            <label for="user-name">Full Name*</label>
+            <input type="text" id="user-name" placeholder="Enter full name" required>
+        </div>
+        <div class="form-group">
+            <label for="user-username">Username*</label>
+            <input type="text" id="user-username" placeholder="Enter username" required>
+        </div>
+        <div class="form-group password-field">
+            <label for="user-password">Password*</label>
+            <input type="password" id="user-password" placeholder="Enter password" required>
+        </div>
+        <div class="form-group password-field">
+            <label for="user-confirm-password">Confirm Password*</label>
+            <input type="password" id="user-confirm-password" placeholder="Confirm password" required>
+        </div>
+        <div class="form-group">
+            <label for="user-role">Role*</label>
+            <select id="user-role" required>
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+        <p class="form-note">* Required fields</p>
+    </div>
+</template>
+
+<script src="assets/js/settings.js"></script>
