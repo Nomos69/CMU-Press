@@ -42,13 +42,14 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.5rem 1.5rem;
+    padding: 10px 20px; /* Reduced padding */
     background-color: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     position: fixed;
     top: 0;
     width: 100%;
     z-index: 100;
+    height: 50px; /* Reduced height */
 }
 
 .logo {
@@ -112,17 +113,20 @@ header {
 /* Navigation Styles */
 nav {
     position: fixed;
-    top: 60px;
+    top: 50px; /* Match to header height */
     width: 100%;
     background-color: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     z-index: 99;
+    height: 40px; /* Fixed height for nav */
 }
 
 nav ul {
     display: flex;
     list-style-type: none;
-    padding: 0 1.5rem;
+    padding: 0 10px;
+    margin: 10;
+    height: 100%;
 }
 
 nav li {
@@ -158,12 +162,12 @@ nav i {
 
 /* Main Content Styles */
 main {
-    margin-top: 110px;
-    padding: 1.5rem;
+    margin-top: 100px; /* 50px (header) + 40px (nav) + 10px (extra space) */
+    padding: 20px;
 }
 
 .tab-content {
-    display: none;
+    padding-top: 20px
 }
 
 .tab-content.active {
@@ -173,6 +177,8 @@ main {
 .container {
     display: flex;
     gap: 1.5rem;
+    position: relative;
+    z-index: 1;
 }
 
 .left-column {
@@ -180,6 +186,7 @@ main {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    position:relative;
 }
 
 .right-column {
@@ -187,6 +194,7 @@ main {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    position: relative;
 }
 
 /* Card Styles */
@@ -877,4 +885,325 @@ main {
     .modal-container {
         width: 95%;
     }
+}
+
+
+/* Enhanced Inventory Table Styles */
+.inventory-container {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.inventory-header h2 {
+    margin: 0;
+    color: #333;
+    font-size: 1.4rem;
+}
+
+.inventory-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.search-inventory {
+    padding: 15px 20px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.search-inventory form {
+    display: flex;
+}
+
+.search-inventory input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px 0 0 4px;
+    outline: none;
+}
+
+.search-inventory button {
+    background-color: #5a5af3;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    padding: 0 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.search-inventory button:hover {
+    background-color: #4747e8;
+}
+
+/* Table Styles */
+.inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    position:relative;
+    z-index: 1;
+    margin-top: 30px;
+    
+}
+
+.inventory-table th {
+    background-color: #f5f5f5;
+    color: #444;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 15px;
+    border-bottom: 2px solid #e0e0e0;
+    position: relative
+}
+
+.inventory-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    vertical-align: middle;
+}
+
+.inventory-table tr:hover {
+    background-color: #f9f9ff;
+}
+
+.inventory-table tr:last-child td {
+    border-bottom: none;
+}
+
+.inventory-table{
+    position: relative;
+}
+
+/* Status Indicators */
+.status-indicator {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-in-stock {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-low-stock {
+    background-color: #fff8e1;
+    color: #f57c00;
+}
+
+.status-out-of-stock {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background-color: #5a5af3;
+    color: white;
+    border-color: #5a5af3;
+}
+
+.edit-btn:hover {
+    background-color: #2196f3;
+    border-color: #2196f3;
+}
+
+.reorder-btn:hover {
+    background-color: #4caf50;
+    border-color: #4caf50;
+}
+
+.delete-btn:hover {
+    background-color: #f44336;
+    border-color: #f44336;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    padding: 15px 0;
+    gap: 5px;
+}
+
+.pagination a,
+.pagination span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+    color: #333;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.pagination a:hover {
+    background-color: #e0e0e0;
+}
+
+.pagination .active {
+    background-color: #5a5af3;
+    color: white;
+}
+
+.pagination .disabled {
+    color: #aaa;
+    cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .inventory-table {
+        font-size: 0.9rem;
+    }
+    
+    .inventory-table th,
+    .inventory-table td {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .inventory-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .inventory-actions {
+        width: 100%;
+    }
+    
+    .action-buttons {
+        justify-content: flex-end;
+    }
+    
+    /* Make table scrollable horizontally on small screens */
+    .inventory-table-wrapper {
+        overflow-x: auto;
+    }
+}
+
+
+/* Fix header overlap issues */
+main {
+    margin-top: 130px; /* Increase this value to add more space between header and content */
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Ensure the navigation tabs don't overlap with content */
+nav {
+    position: fixed;
+    top: 60px;
+    width: 100%;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 99;
+}
+
+/* Ensure the header is properly positioned */
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    height: 60px; /* Set a fixed height for the header */
+}
+
+/* Add padding to the first table row to create space */
+.inventory-table thead tr th,
+.inventory-table tbody tr:first-child td {
+    padding-top: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    main {
+        margin-top: 200px; /* Increase spacing on mobile */
+    }
+}
+
+#inventory, 
+#reports, 
+#book_requests, 
+#pos, 
+#settings {
+    margin-top: 40px !important; /* Add space to all tab content sections */
+}
+
+/* Make sure the content doesn't start until after the navigation */
+.container {
+    padding-top: 20px !important;
+}
+
+/* Override any fixed positioning that might be causing problems */
+.left-column, 
+.right-column {
+    position: relative !important;
+    top: auto !important;
+}
+
+/* Additional fix for the table header row */
+.inventory-table thead tr {
+    height: 50px !important; /* Give more height to the header row */
+}
+
+/* Ensure the table has adequate space at the top */
+.inventory-table-wrapper {
+    margin-top: 30px !important;
+}
+
+/* Make space for the very first row */
+.inventory-table tbody tr:first-child td {
+    padding-top: 15px !important;
+}
+
+#header-spacer {
+    display: block;
+    width: 100%;
+    height: 100px; /* Adjust this value based on your header + nav height */
+    position: relative;
 }

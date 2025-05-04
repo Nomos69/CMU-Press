@@ -333,22 +333,6 @@ while ($row = $priorityStmt->fetch(PDO::FETCH_ASSOC)) {
                     </div>
                 </div>
             </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h2>Actions</h2>
-                </div>
-                <div class="card-body">
-                    <div class="action-buttons request-actions">
-                        <button id="export-requests-btn" class="btn-secondary">
-                            <i class="fas fa-file-export"></i> Export Requests
-                        </button>
-                        <button id="print-requests-btn" class="btn-secondary">
-                            <i class="fas fa-print"></i> Print Report
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </section>

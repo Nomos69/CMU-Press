@@ -27,9 +27,6 @@ function initializeTransaction() {
     // Initialize checkout button
     initializeCheckout();
     
-    // Initialize refund button
-    initializeRefund();
-    
     // Initialize recent transactions buttons
     initializeRecentTransactions();
 }
@@ -90,16 +87,8 @@ function initializeTransactionButtons() {
         option.addEventListener('click', function() {
             const optionType = this.getAttribute('data-type');
             
-            switch (optionType) {
-                case 'new':
-                    startNewTransaction();
-                    break;
-                case 'hold':
-                    holdTransaction();
-                    break;
-                case 'discount':
-                    applyDiscount();
-                    break;
+            if (optionType === 'new') {
+                startNewTransaction();
             }
         });
     });
@@ -109,17 +98,7 @@ function initializeTransactionButtons() {
  * Initialize payment methods
  */
 function initializePaymentMethods() {
-    const paymentButtons = document.querySelectorAll('.payment-btn');
-    
-    paymentButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            // Remove active class from all buttons
-            paymentButtons.forEach(btn => btn.classList.remove('active'));
-            
-            // Add active class to clicked button
-            this.classList.add('active');
-        });
-    });
+    // No longer needed as only cash payment is available
 }
 
 /**
@@ -132,19 +111,6 @@ function initializeCheckout() {
     
     checkoutBtn.addEventListener('click', function() {
         processCheckout();
-    });
-}
-
-/**
- * Initialize refund button
- */
-function initializeRefund() {
-    const refundBtn = document.getElementById('refund-btn');
-    
-    if (!refundBtn) return;
-    
-    refundBtn.addEventListener('click', function() {
-        processRefund();
     });
 }
 
@@ -166,15 +132,6 @@ function initializeRecentTransactions() {
         button.addEventListener('click', function() {
             const transactionId = this.getAttribute('data-id');
             showReceipt(transactionId);
-        });
-    });
-    
-    // Resume buttons
-    const resumeButtons = document.querySelectorAll('.resume-btn');
-    resumeButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const transactionId = this.getAttribute('data-id');
-            resumeTransaction(transactionId);
         });
     });
 }
@@ -349,15 +306,11 @@ function updateTransactionSummary() {
         subtotal += total;
     });
     
-    // Get discount
-    const discountElement = document.getElementById('discount');
-    const discount = parseFloat(discountElement.textContent.replace('$', ''));
-    
     // Calculate tax (8%)
     const tax = subtotal * 0.08;
     
     // Calculate total
-    const total = subtotal + tax - discount;
+    const total = subtotal + tax;
     
     // Update elements
     document.getElementById('subtotal').textContent = formatCurrency(subtotal);
@@ -379,9 +332,6 @@ function startNewTransaction() {
     customerField.value = '';
     customerField.removeAttribute('data-customer-id');
     
-    // Reset discount
-    document.getElementById('discount').textContent = '$0.00';
-    
     // Update transaction summary
     updateTransactionSummary();
     
@@ -391,84 +341,6 @@ function startNewTransaction() {
     transactionIdElement.textContent = currentId + 1;
     
     showNotification('Started new transaction', 'success');
-}
-
-/**
- * Hold transaction
- */
-function holdTransaction() {
-    const transactionItems = document.getElementById('transaction-items');
-    const rows = transactionItems.querySelectorAll('tr');
-    
-    if (rows.length === 0) {
-        showNotification('Cannot hold an empty transaction', 'warning');
-        return;
-    }
-    
-    showNotification('Processing hold request...', 'info');
-    
-    // In a real application, this would make an API call to hold the transaction
-    // For this demo, we'll simulate an API response
-    setTimeout(() => {
-        showNotification('Transaction placed on hold', 'success');
-        startNewTransaction();
-    }, 500);
-}
-
-/**
- * Apply discount
- */
-function applyDiscount() {
-    const subtotalElement = document.getElementById('subtotal');
-    const subtotal = parseFloat(subtotalElement.textContent.replace('$', ''));
-    
-    if (subtotal === 0) {
-        showNotification('Cannot apply discount to an empty transaction', 'warning');
-        return;
-    }
-    
-    // Create discount form
-    const discountForm = `
-        <div class="discount-form">
-            <div class="form-group">
-                <label for="discount-type">Discount Type</label>
-                <select id="discount-type">
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount ($)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="discount-value">Discount Value</label>
-                <input type="number" id="discount-value" min="0" step="0.01" value="10">
-            </div>
-        </div>
-    `;
-    
-    openModal('Apply Discount', discountForm, function() {
-        const discountType = document.getElementById('discount-type').value;
-        const discountValue = parseFloat(document.getElementById('discount-value').value);
-        
-        if (isNaN(discountValue) || discountValue < 0) {
-            showNotification('Please enter a valid discount value', 'warning');
-            return;
-        }
-        
-        let discountAmount = 0;
-        
-        if (discountType === 'percentage') {
-            // Percentage discount
-            discountAmount = subtotal * (discountValue / 100);
-            showNotification(`Applied ${discountValue}% discount`, 'success');
-        } else {
-            // Fixed amount discount
-            discountAmount = Math.min(discountValue, subtotal); // Don't exceed subtotal
-            showNotification(`Applied $${discountAmount.toFixed(2)} discount`, 'success');
-        }
-        
-        document.getElementById('discount').textContent = formatCurrency(discountAmount);
-        updateTransactionSummary();
-        closeModal();
-    });
 }
 
 /**
@@ -483,14 +355,8 @@ function processCheckout() {
         return;
     }
     
-    // Get payment method
-    const activePayment = document.querySelector('.payment-btn.active');
-    if (!activePayment) {
-        showNotification('Please select a payment method', 'warning');
-        return;
-    }
-    
-    const paymentMethod = activePayment.getAttribute('data-method');
+    // Payment method is always cash
+    const paymentMethod = 'cash';
     
     // Build transaction data
     const items = [];
@@ -517,7 +383,6 @@ function processCheckout() {
     // Get transaction summary values
     const subtotal = parseFloat(document.getElementById('subtotal').textContent.replace('$', ''));
     const tax = parseFloat(document.getElementById('tax').textContent.replace('$', ''));
-    const discount = parseFloat(document.getElementById('discount').textContent.replace('$', ''));
     const total = parseFloat(document.getElementById('total').textContent.replace('$', ''));
     
     const transactionData = {
@@ -527,7 +392,7 @@ function processCheckout() {
         payment_method: paymentMethod,
         subtotal: subtotal,
         tax: tax,
-        discount: discount,
+        discount: 0, // No discount feature
         total: total,
         status: 'completed'
     };
@@ -574,13 +439,6 @@ function processCheckout() {
 }
 
 /**
- * Process refund
- */
-function processRefund() {
-    openRecentTransactionsModal();
-}
-
-/**
  * Open recent transactions modal
  */
 function openRecentTransactionsModal() {
@@ -614,9 +472,7 @@ function openRecentTransactionsModal() {
                 
                 let actionButton = '';
                 if (transaction.status === 'completed') {
-                    actionButton = `<button class="btn-link refund-transaction-btn" data-id="${transaction.transaction_id}">Refund</button>`;
-                } else if (transaction.status === 'on_hold') {
-                    actionButton = `<button class="btn-link resume-transaction-btn" data-id="${transaction.transaction_id}">Resume</button>`;
+                    actionButton = `<button class="btn-link show-receipt-btn" data-id="${transaction.transaction_id}">Receipt</button>`;
                 }
                 
                 transactionsHTML += `
@@ -625,7 +481,7 @@ function openRecentTransactionsModal() {
                         <td>${dateFormatted}</td>
                         <td>${transaction.customer_name || 'Guest'}</td>
                         <td>${transaction.item_count}</td>
-                        <td>$${parseFloat(transaction.total).toFixed(2)}</td>
+                        <td>${parseFloat(transaction.total).toFixed(2)}</td>
                         <td><span class="status ${transaction.status}">${transaction.status}</span></td>
                         <td>${actionButton}</td>
                     </tr>
@@ -641,17 +497,10 @@ function openRecentTransactionsModal() {
             openModal('Recent Transactions', transactionsHTML);
             
             // Add event listeners to buttons
-            document.querySelectorAll('.refund-transaction-btn').forEach(button => {
+            document.querySelectorAll('.show-receipt-btn').forEach(button => {
                 button.addEventListener('click', function() {
                     const transactionId = this.getAttribute('data-id');
-                    refundTransaction(transactionId);
-                });
-            });
-            
-            document.querySelectorAll('.resume-transaction-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const transactionId = this.getAttribute('data-id');
-                    resumeTransaction(transactionId);
+                    showReceipt(transactionId);
                 });
             });
         } else {
@@ -662,74 +511,6 @@ function openRecentTransactionsModal() {
         console.error('Error:', error);
         openModal('Recent Transactions', '<p>An error occurred while loading transactions.</p>');
     });
-}
-
-/**
- * Refund transaction
- * @param {string} transactionId Transaction ID
- */
-function refundTransaction(transactionId) {
-    if (confirm(`Are you sure you want to refund transaction #${transactionId}?`)) {
-        showNotification('Processing refund...', 'info');
-        
-        // In a real application, this would make an API call to process the refund
-        // For this demo, we'll simulate an API response
-        setTimeout(() => {
-            closeModal();
-            showNotification('Refund processed successfully', 'success');
-            
-            // Reload page to refresh stats and transactions
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }, 1000);
-    }
-}
-
-/**
- * Resume transaction
- * @param {string} transactionId Transaction ID
- */
-function resumeTransaction(transactionId) {
-    showNotification('Loading transaction...', 'info');
-    
-    // In a real application, this would make an API call to get the transaction details
-    // For this demo, we'll simulate an API response
-    setTimeout(() => {
-        closeModal();
-        
-        // Clear current transaction
-        startNewTransaction();
-        
-        // Add sample items
-        addTransactionItem({
-            book_id: 1,
-            title: 'The Midnight Library',
-            author: 'Matt Haig',
-            price: 18.99,
-            quantity: 1,
-            total: 18.99
-        });
-        
-        addTransactionItem({
-            book_id: 2,
-            title: 'Klara and the Sun',
-            author: 'Kazuo Ishiguro',
-            price: 24.99,
-            quantity: 1,
-            total: 24.99
-        });
-        
-        // Update customer
-        const customerField = document.getElementById('customer-field');
-        customerField.value = 'David Williams';
-        customerField.setAttribute('data-customer-id', '3');
-        
-        // Update transaction summary
-        updateTransactionSummary();
-        
-        showNotification('Transaction resumed successfully', 'success');
-    }, 1000);
 }
 
 /**
@@ -797,17 +578,13 @@ function showReceipt(transactionId) {
                         <span>Tax (8%):</span>
                         <span>$5.32</span>
                     </div>
-                    <div class="summary-row">
-                        <span>Discount:</span>
-                        <span>$0.00</span>
-                    </div>
                     <div class="summary-row total">
                         <span>Total:</span>
                         <span>$71.80</span>
                     </div>
                 </div>
                 <div class="receipt-footer">
-                    <p>Payment Method: Credit Card</p>
+                    <p>Payment Method: Cash</p>
                     <p>Thank you for your purchase!</p>
                     <p>Please come again</p>
                 </div>
@@ -945,9 +722,9 @@ function printReceipt(receiptHTML) {
 
 /**
  * Format currency
- * @param {number} amount Amount
- * @returns {string} Formatted currency
+ * @param {number} amount - Amount
+ * @returns {string} Formatted currency string
  */
 function formatCurrency(amount) {
-    return ' + parseFloat(amount).toFixed(2);
+    return '$' + amount.toFixed(2);
 }

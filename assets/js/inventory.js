@@ -1,6 +1,6 @@
 /**
- * Inventory JavaScript file for Bookstore POS
- * Handles inventory management functionality
+ * Enhanced Inventory JavaScript for Bookstore POS
+ * Handles inventory management functionality with improved UI interactions
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -24,8 +24,17 @@ function initializeInventory() {
     // Initialize delete book buttons
     initializeDeleteBooks();
     
-    // Initialize import/export buttons
-    initializeImportExport();
+    // Initialize manual inventory update
+    initializeManualInventory();
+    
+    // Initialize inventory search
+    initializeInventorySearch();
+    
+    // Initialize bulk update button
+    initializeBulkUpdate();
+    
+    // Initialize quick actions
+    initializeQuickActions();
 }
 
 /**
@@ -79,6 +88,7 @@ function initializeDeleteBooks() {
         button.addEventListener('click', function() {
             const bookId = this.getAttribute('data-id');
             
+            // Enhanced confirmation dialog
             if (confirm('Are you sure you want to delete this book? This action cannot be undone.')) {
                 deleteBook(bookId);
             }
@@ -87,21 +97,193 @@ function initializeDeleteBooks() {
 }
 
 /**
- * Initialize import/export buttons
+ * Initialize manual inventory update functionality
  */
-function initializeImportExport() {
+function initializeManualInventory() {
+    // Add quick edit functionality to stock quantities
+    const stockCells = document.querySelectorAll('.inventory-table tbody td:nth-child(5)');
+    stockCells.forEach(cell => {
+        const row = cell.closest('tr');
+        const bookId = row.getAttribute('data-id');
+        const currentStock = parseInt(cell.textContent);
+        
+        // Replace text with editable controls
+        cell.innerHTML = `
+            <div class="stock-edit">
+                <span class="stock-value">${currentStock}</span>
+                <div class="stock-controls">
+                    <button class="stock-btn decrease-stock" data-id="${bookId}" title="Decrease"><i class="fas fa-minus"></i></button>
+                    <button class="stock-btn increase-stock" data-id="${bookId}" title="Increase"><i class="fas fa-plus"></i></button>
+                    <button class="stock-btn edit-stock" data-id="${bookId}" title="Edit"><i class="fas fa-pencil-alt"></i></button>
+                </div>
+            </div>
+        `;
+    });
+    
+    // Add event listeners to stock buttons
+    document.querySelectorAll('.decrease-stock').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const bookId = this.getAttribute('data-id');
+            updateBookStock(bookId, -1);
+        });
+    });
+    
+    document.querySelectorAll('.increase-stock').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const bookId = this.getAttribute('data-id');
+            updateBookStock(bookId, 1);
+        });
+    });
+    
+    document.querySelectorAll('.edit-stock').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const bookId = this.getAttribute('data-id');
+            const stockEditElem = this.closest('.stock-edit');
+            const stockValueElem = stockEditElem.querySelector('.stock-value');
+            const currentStock = parseInt(stockValueElem.textContent);
+            
+            // Create inline edit input
+            const inputElem = document.createElement('input');
+            inputElem.type = 'number';
+            inputElem.min = '0';
+            inputElem.value = currentStock;
+            inputElem.className = 'stock-input';
+            
+            // Replace stock value with input
+            stockValueElem.innerHTML = '';
+            stockValueElem.appendChild(inputElem);
+            inputElem.focus();
+            
+            // Add event listeners for input
+            inputElem.addEventListener('blur', function() {
+                const newStock = parseInt(this.value);
+                if (!isNaN(newStock) && newStock >= 0) {
+                    setBookStock(bookId, newStock);
+                } else {
+                    // Restore original value if invalid
+                    stockValueElem.textContent = currentStock;
+                }
+            });
+            
+            inputElem.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const newStock = parseInt(this.value);
+                    if (!isNaN(newStock) && newStock >= 0) {
+                        setBookStock(bookId, newStock);
+                    } else {
+                        // Restore original value if invalid
+                        stockValueElem.textContent = currentStock;
+                    }
+                }
+            });
+        });
+    });
+}
+
+/**
+ * Initialize inventory search
+ */
+function initializeInventorySearch() {
+    const searchForm = document.querySelector('.search-inventory form');
+    const searchInput = document.querySelector('.search-inventory input');
+    
+    if (!searchForm || !searchInput) return;
+    
+    // Add clear search button if there's a search value
+    if (searchInput.value.trim() !== '') {
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'clear-search-btn';
+        clearButton.innerHTML = '<i class="fas fa-times"></i>';
+        clearButton.title = 'Clear search';
+        
+        clearButton.addEventListener('click', function() {
+            searchInput.value = '';
+            searchForm.submit();
+        });
+        
+        searchInput.parentNode.insertBefore(clearButton, searchInput.nextSibling);
+    }
+}
+
+/**
+ * Initialize bulk update functionality
+ */
+function initializeBulkUpdate() {
+    const bulkUpdateBtn = document.getElementById('bulk-update-btn');
+    
+    if (!bulkUpdateBtn) return;
+    
+    bulkUpdateBtn.addEventListener('click', function() {
+        openBulkUpdateModal();
+    });
+}
+
+/**
+ * Initialize quick actions
+ */
+function initializeQuickActions() {
+    const manageCategoriesBtn = document.getElementById('manage-categories-btn');
     const importBtn = document.getElementById('import-inventory-btn');
     const exportBtn = document.getElementById('export-inventory-btn');
     
+    if (manageCategoriesBtn) {
+        manageCategoriesBtn.addEventListener('click', function() {
+            // In a real app, we would open a categories management modal
+            showNotification('Categories management feature coming soon!', 'info');
+        });
+    }
+    
     if (importBtn) {
         importBtn.addEventListener('click', function() {
-            openImportModal();
+            // Create a hidden file input
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.csv,.xlsx';
+            fileInput.style.display = 'none';
+            
+            // Add to DOM
+            document.body.appendChild(fileInput);
+            
+            // Trigger click
+            fileInput.click();
+            
+            // Handle file selection
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    showNotification(`Importing inventory from ${file.name}...`, 'info');
+                    
+                    // In a real app, we would process the file
+                    setTimeout(() => {
+                        showNotification('Import completed successfully!', 'success');
+                    }, 1500);
+                }
+                
+                // Clean up
+                document.body.removeChild(fileInput);
+            });
         });
     }
     
     if (exportBtn) {
         exportBtn.addEventListener('click', function() {
-            exportInventory();
+            showNotification('Preparing inventory export...', 'info');
+            
+            // In a real app, we would generate and download a file
+            setTimeout(() => {
+                // Create a sample CSV download
+                const csvContent = "data:text/csv;charset=utf-8,Book ID,Title,Author,ISBN,Price,Stock,Low Stock Threshold\n1,Sample Book,Sample Author,1234567890,19.99,10,5";
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "inventory_export_" + new Date().toISOString().slice(0, 10) + ".csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showNotification('Export completed successfully!', 'success');
+            }, 1000);
         });
     }
 }
@@ -122,29 +304,32 @@ function openAddBookModal() {
  * @param {string} bookId Book ID
  */
 function openEditBookModal(bookId) {
-    // In a real application, this would fetch the book details from the server
-    // For this demo, we'll show a notification
     showNotification('Fetching book details...', 'info');
     
-    // Simulate API call
-    setTimeout(() => {
-        const template = document.getElementById('book-template');
-        
-        if (!template) return;
-        
-        openModal('Edit Book', template.content.cloneNode(true).querySelector('.book-form').outerHTML, function() {
-            updateBook(bookId);
+    // Get book details from the API
+    fetch(`api/book/get.php?id=${bookId}`)
+        .then(response => response.json())
+        .then(book => {
+            const template = document.getElementById('book-template');
+            
+            if (!template) return;
+            
+            openModal('Edit Book', template.content.cloneNode(true).querySelector('.book-form').outerHTML, function() {
+                updateBook(bookId);
+            });
+            
+            // Populate form with book details
+            document.getElementById('book-title').value = book.title;
+            document.getElementById('book-author').value = book.author;
+            document.getElementById('book-isbn').value = book.isbn || '';
+            document.getElementById('book-price').value = book.price;
+            document.getElementById('book-stock').value = book.stock_qty;
+            document.getElementById('book-threshold').value = book.low_stock_threshold;
+        })
+        .catch(error => {
+            console.error('Error fetching book details:', error);
+            showNotification('Error fetching book details. Please try again.', 'error');
         });
-        
-        // In a real application, you would populate the form with the book details
-        // For this demo, we'll just set placeholder values
-        document.getElementById('book-title').value = 'Sample Book Title';
-        document.getElementById('book-author').value = 'Sample Author';
-        document.getElementById('book-isbn').value = '9781234567890';
-        document.getElementById('book-price').value = '19.99';
-        document.getElementById('book-stock').value = '10';
-        document.getElementById('book-threshold').value = '5';
-    }, 500);
 }
 
 /**
@@ -152,52 +337,62 @@ function openEditBookModal(bookId) {
  * @param {string} bookId Book ID
  */
 function openReorderModal(bookId) {
-    // In a real application, this would fetch the book details from the server
-    // For this demo, we'll show a notification
     showNotification('Fetching book details...', 'info');
     
-    // Simulate API call
-    setTimeout(() => {
-        const template = document.getElementById('reorder-template');
-        
-        if (!template) return;
-        
-        openModal('Reorder Book', template.content.cloneNode(true).querySelector('.reorder-form').outerHTML, function() {
-            processReorder(bookId);
+    // Get book details from the API
+    fetch(`api/book/get.php?id=${bookId}`)
+        .then(response => response.json())
+        .then(book => {
+            const template = document.getElementById('reorder-template');
+            
+            if (!template) return;
+            
+            openModal('Reorder Book', template.content.cloneNode(true).querySelector('.reorder-form').outerHTML, function() {
+                processReorder(bookId);
+            });
+            
+            // Populate form with book details
+            document.getElementById('reorder-book').value = `${book.title} by ${book.author}`;
+            document.getElementById('reorder-current-stock').value = book.stock_qty;
+        })
+        .catch(error => {
+            console.error('Error fetching book details:', error);
+            showNotification('Error fetching book details. Please try again.', 'error');
         });
-        
-        // In a real application, you would populate the form with the book details
-        // For this demo, we'll just set placeholder values
-        document.getElementById('reorder-book').value = 'Sample Book Title by Sample Author';
-        document.getElementById('reorder-current-stock').value = '3';
-    }, 500);
 }
 
 /**
- * Open import modal
+ * Open bulk update modal
  */
-function openImportModal() {
-    // Create import form
-    const importForm = `
-        <div class="import-form">
+function openBulkUpdateModal() {
+    // Create bulk update form HTML
+    const bulkUpdateForm = `
+        <div class="bulk-update-form">
             <div class="form-group">
-                <label for="import-file">Select CSV File*</label>
-                <input type="file" id="import-file" accept=".csv" required>
+                <label for="bulk-action">Action</label>
+                <select id="bulk-action">
+                    <option value="increase">Increase Stock</option>
+                    <option value="decrease">Decrease Stock</option>
+                    <option value="set">Set Stock Quantity</option>
+                </select>
             </div>
             <div class="form-group">
-                <label>
-                    <input type="checkbox" id="import-update-existing" checked>
-                    Update existing books
-                </label>
+                <label for="bulk-value">Value</label>
+                <input type="number" id="bulk-value" min="1" value="1">
             </div>
-            <p class="form-note">* Required fields</p>
-            <p class="import-instructions">
-                CSV file must have the following columns: title, author, isbn, price, stock_qty, low_stock_threshold
-            </p>
+            <div class="form-group">
+                <label for="bulk-criteria">Apply to</label>
+                <select id="bulk-criteria">
+                    <option value="all">All Books</option>
+                    <option value="low_stock">Low Stock Books Only</option>
+                    <option value="out_of_stock">Out of Stock Books Only</option>
+                </select>
+            </div>
+            <p class="form-note">This will update stock quantities for multiple books at once.</p>
         </div>
     `;
     
-    openModal('Import Inventory', importForm, importInventory);
+    openModal('Bulk Update Inventory', bulkUpdateForm, processBulkUpdate);
 }
 
 /**
@@ -227,21 +422,37 @@ function addBook() {
         low_stock_threshold: parseInt(threshold)
     };
     
-    // In a real application, this would make an API call to create the book
-    // For this demo, we'll just show a notification
+    // Show loading notification
     showNotification('Adding book...', 'info');
     
-    // Simulate API call
-    setTimeout(() => {
+    // Send request to API
+    fetch('api/book/add.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bookData)
+    })
+    .then(response => response.json())
+    .then(data => {
         closeModal();
-        showNotification('Book added successfully.', 'success');
         
-        // In a real application, you would reload the page or update the UI
-        // For this demo, we'll just reload the page after a delay
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
-    }, 1000);
+        if (data.book_id) {
+            showNotification('Book added successfully.', 'success');
+            
+            // Reload page to show new book
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to add book.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding book:', error);
+        closeModal();
+        showNotification('An error occurred while adding the book.', 'error');
+    });
 }
 
 /**
@@ -273,21 +484,37 @@ function updateBook(bookId) {
         low_stock_threshold: parseInt(threshold)
     };
     
-    // In a real application, this would make an API call to update the book
-    // For this demo, we'll just show a notification
+    // Show loading notification
     showNotification('Updating book...', 'info');
     
-    // Simulate API call
-    setTimeout(() => {
+    // Send request to API
+    fetch('api/book/update.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bookData)
+    })
+    .then(response => response.json())
+    .then(data => {
         closeModal();
-        showNotification('Book updated successfully.', 'success');
         
-        // In a real application, you would reload the page or update the UI
-        // For this demo, we'll just reload the page after a delay
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
-    }, 1000);
+        if (data.message && data.message.includes('successfully')) {
+            showNotification('Book updated successfully.', 'success');
+            
+            // Reload page to show updated book
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to update book.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating book:', error);
+        closeModal();
+        showNotification('An error occurred while updating the book.', 'error');
+    });
 }
 
 /**
@@ -295,20 +522,41 @@ function updateBook(bookId) {
  * @param {string} bookId Book ID
  */
 function deleteBook(bookId) {
-    // In a real application, this would make an API call to delete the book
-    // For this demo, we'll just show a notification
+    // Show loading notification
     showNotification('Deleting book...', 'info');
     
-    // Simulate API call
-    setTimeout(() => {
-        showNotification('Book deleted successfully.', 'success');
-        
-        // In a real application, you would reload the page or update the UI
-        // For this demo, we'll just reload the page after a delay
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
-    }, 1000);
+    // Send request to API
+    fetch(`api/book/delete.php?id=${bookId}`, {
+        method: 'DELETE'
+    })
+    .then(response => {
+        // Check if response is ok
+        if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error('Failed to delete book');
+        }
+    })
+    .then(data => {
+        if (data.message && data.message.includes('successfully')) {
+            showNotification('Book deleted successfully.', 'success');
+            
+            // Remove the book from the table
+            const bookRow = document.querySelector(`tr[data-id="${bookId}"]`);
+            if (bookRow) {
+                bookRow.remove();
+            }
+            
+            // Update inventory statistics - in a real app you might want to fetch fresh stats
+            updateInventoryUI();
+        } else {
+            showNotification(data.message || 'Failed to delete book.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting book:', error);
+        showNotification('An error occurred while deleting the book.', 'error');
+    });
 }
 
 /**
@@ -325,79 +573,291 @@ function processReorder(bookId) {
         return;
     }
     
-    // Prepare reorder data
-    const reorderData = {
-        book_id: bookId,
-        quantity: parseInt(quantity),
-        notes: notes
-    };
-    
-    // In a real application, this would make an API call to process the reorder
-    // For this demo, we'll just show a notification
+    // Show loading notification
     showNotification('Processing reorder...', 'info');
     
-    // Simulate API call
-    setTimeout(() => {
-        closeModal();
-        showNotification('Reorder processed successfully.', 'success');
-    }, 1000);
+    // In a real application, this would make an API call to create a purchase order
+    // For this demo, we'll update the stock directly
+    fetch(`api/book/get.php?id=${bookId}`)
+        .then(response => response.json())
+        .then(book => {
+            // Update the book stock
+            const newStock = book.stock_qty + parseInt(quantity);
+            return fetch('api/book/update.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    book_id: bookId,
+                    stock_qty: newStock
+                })
+            });
+        })
+        .then(response => response.json())
+        .then(data => {
+            closeModal();
+            
+            if (data.message && data.message.includes('successfully')) {
+                showNotification('Reorder processed successfully. Stock has been updated.', 'success');
+                
+                // Reload page to show updated stock
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.message || 'Failed to process reorder.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error processing reorder:', error);
+            closeModal();
+            showNotification('An error occurred while processing the reorder.', 'error');
+        });
 }
 
 /**
- * Import inventory
+ * Process bulk update
  */
-function importInventory() {
-    const importFile = document.getElementById('import-file');
-    const updateExisting = document.getElementById('import-update-existing').checked;
+function processBulkUpdate() {
+    const action = document.getElementById('bulk-action').value;
+    const value = parseInt(document.getElementById('bulk-value').value);
+    const criteria = document.getElementById('bulk-criteria').value;
     
     // Validate inputs
-    if (!importFile.files || importFile.files.length === 0) {
-        showNotification('Please select a CSV file.', 'warning');
+    if (isNaN(value) || value < 0) {
+        showNotification('Please enter a valid value.', 'warning');
         return;
     }
     
-    // Get the selected file
-    const file = importFile.files[0];
-    
-    // Check file type
-    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-        showNotification('Please select a valid CSV file.', 'warning');
+    // Confirm bulk update
+    const confirmMessage = `Are you sure you want to ${action} stock by ${value} for ${criteria === 'all' ? 'all books' : criteria === 'low_stock' ? 'low stock books' : 'out of stock books'}?`;
+    if (!confirm(confirmMessage)) {
         return;
     }
     
-    // In a real application, this would make an API call to import the inventory
-    // For this demo, we'll just show a notification
-    showNotification('Importing inventory...', 'info');
+    // Show loading notification
+    showNotification('Processing bulk update...', 'info');
     
-    // Simulate API call
-    setTimeout(() => {
-        closeModal();
-        showNotification('Inventory imported successfully.', 'success');
+    // Get all book rows based on criteria
+    let bookRows;
+    if (criteria === 'all') {
+        bookRows = document.querySelectorAll('.inventory-table tbody tr');
+    } else if (criteria === 'low_stock') {
+        bookRows = document.querySelectorAll('.inventory-table tbody tr .status-low-stock').closest('tr');
+    } else if (criteria === 'out_of_stock') {
+        bookRows = document.querySelectorAll('.inventory-table tbody tr .status-out-of-stock').closest('tr');
+    }
+    
+    // Process each book
+    const updatePromises = [];
+    bookRows.forEach(row => {
+        const bookId = row.getAttribute('data-id');
+        const stockCell = row.querySelector('td:nth-child(5)');
+        const currentStock = parseInt(stockCell.querySelector('.stock-value').textContent);
         
-        // In a real application, you would reload the page or update the UI
-        // For this demo, we'll just reload the page after a delay
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
-    }, 2000);
+        let newStock;
+        if (action === 'increase') {
+            newStock = currentStock + value;
+        } else if (action === 'decrease') {
+            newStock = Math.max(0, currentStock - value);
+        } else if (action === 'set') {
+            newStock = value;
+        }
+        
+        // Add update promise
+        updatePromises.push(
+            fetch('api/book/update.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    book_id: bookId,
+                    stock_qty: newStock
+                })
+            })
+        );
+    });
+    
+    // Process all updates
+    Promise.all(updatePromises)
+        .then(() => {
+            closeModal();
+            showNotification('Bulk update completed successfully.', 'success');
+            
+            // Reload page to show updated stocks
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        })
+        .catch(error => {
+            console.error('Error during bulk update:', error);
+            closeModal();
+            showNotification('An error occurred during bulk update.', 'error');
+        });
 }
 
 /**
- * Export inventory
+ * Update book stock by increment/decrement
+ * @param {string} bookId Book ID
+ * @param {number} change Stock change amount (positive or negative)
  */
-function exportInventory() {
-    // In a real application, this would make an API call to export the inventory
-    // For this demo, we'll just show a notification
-    showNotification('Exporting inventory...', 'info');
+function updateBookStock(bookId, change) {
+    // Get current stock
+    const bookRow = document.querySelector(`tr[data-id="${bookId}"]`);
+    const stockValueElem = bookRow.querySelector('.stock-value');
+    const currentStock = parseInt(stockValueElem.textContent);
     
-    // Simulate API call
-    setTimeout(() => {
-        showNotification('Inventory exported successfully.', 'success');
-        
-        // In a real application, you would trigger a file download
-        // For this demo, we'll just show a message
-        setTimeout(() => {
-            alert('In a real application, this would download a CSV file of your inventory.');
-        }, 1000);
-    }, 1000);
+    // Calculate new stock (ensure it doesn't go below 0)
+    const newStock = Math.max(0, currentStock + change);
+    
+    // If no change, do nothing
+    if (newStock === currentStock) return;
+    
+    // Update UI immediately for better UX
+    stockValueElem.textContent = newStock;
+    
+    // Update book status cell
+    updateBookStatusCell(bookRow, newStock);
+    
+    // Send update to server
+    fetch('api/book/update.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            book_id: bookId,
+            stock_qty: newStock
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message && data.message.includes('successfully')) {
+            // Show a brief success notification
+            showNotification(`Stock updated to ${newStock}`, 'success', 1500);
+        } else {
+            // Revert UI changes on error
+            stockValueElem.textContent = currentStock;
+            updateBookStatusCell(bookRow, currentStock);
+            showNotification(data.message || 'Failed to update stock.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating stock:', error);
+        // Revert UI changes on error
+        stockValueElem.textContent = currentStock;
+        updateBookStatusCell(bookRow, currentStock);
+        showNotification('An error occurred while updating the stock.', 'error');
+    });
+}
+
+/**
+ * Set book stock to specific value
+ * @param {string} bookId Book ID
+ * @param {number} newStock New stock value
+ */
+function setBookStock(bookId, newStock) {
+    // Get current stock
+    const bookRow = document.querySelector(`tr[data-id="${bookId}"]`);
+    const stockValueElem = bookRow.querySelector('.stock-value');
+    const currentStock = parseInt(stockValueElem.textContent);
+    
+    // If no change, just update UI
+    if (newStock === currentStock) {
+        stockValueElem.textContent = currentStock;
+        return;
+    }
+    
+    // Update UI immediately for better UX
+    stockValueElem.textContent = newStock;
+    
+    // Update book status cell
+    updateBookStatusCell(bookRow, newStock);
+    
+    // Send update to server
+    fetch('api/book/update.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            book_id: bookId,
+            stock_qty: newStock
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message && data.message.includes('successfully')) {
+            // Show a brief success notification
+            showNotification(`Stock set to ${newStock}`, 'success', 1500);
+        } else {
+            // Revert UI changes on error
+            stockValueElem.textContent = currentStock;
+            updateBookStatusCell(bookRow, currentStock);
+            showNotification(data.message || 'Failed to update stock.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating stock:', error);
+        // Revert UI changes on error
+        stockValueElem.textContent = currentStock;
+        updateBookStatusCell(bookRow, currentStock);
+        showNotification('An error occurred while updating the stock.', 'error');
+    });
+}
+
+/**
+ * Update book status cell based on stock
+ * @param {HTMLElement} bookRow Book table row
+ * @param {number} stockQty Stock quantity
+ */
+function updateBookStatusCell(bookRow, stockQty) {
+    const statusCell = bookRow.querySelector('td:nth-child(6)');
+    
+    // Get low stock threshold
+    let threshold = 5; // Default
+    const thresholdData = bookRow.getAttribute('data-threshold');
+    if (thresholdData) {
+        threshold = parseInt(thresholdData);
+    }
+    
+    // Determine status
+    let status, statusClass;
+    if (stockQty <= 0) {
+        status = 'Out of Stock';
+        statusClass = 'status-out-of-stock';
+    } else if (stockQty <= threshold) {
+        status = 'Low Stock';
+        statusClass = 'status-low-stock';
+    } else {
+        status = 'In Stock';
+        statusClass = 'status-in-stock';
+    }
+    
+    // Update status cell
+    statusCell.innerHTML = `<span class="status-indicator ${statusClass}">${status}</span>`;
+}
+
+/**
+ * Update inventory UI after changes
+ */
+function updateInventoryUI() {
+    // In a real app, you would refresh the stats from the server
+    // For this demo, we'll just update the UI based on the current table
+
+    // Count books by status
+    const inStockCount = document.querySelectorAll('.status-in-stock').length;
+    const lowStockCount = document.querySelectorAll('.status-low-stock').length;
+    const outOfStockCount = document.querySelectorAll('.status-out-of-stock').length;
+    
+    // Update stats display
+    const inStockElem = document.querySelector('.inventory-stats .stat-box:nth-child(1) .stat-value');
+    const lowStockElem = document.querySelector('.inventory-stats .stat-box:nth-child(2) .stat-value');
+    const outOfStockElem = document.querySelector('.inventory-stats .stat-box:nth-child(3) .stat-value');
+    
+    if (inStockElem) inStockElem.textContent = inStockCount;
+    if (lowStockElem) lowStockElem.textContent = lowStockCount;
+    if (outOfStockElem) outOfStockElem.textContent = outOfStockCount;
 }

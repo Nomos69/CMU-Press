@@ -194,22 +194,6 @@ foreach ($books as $book) {
                     <?php endif; ?>
                 </div>
             </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h2>Inventory Actions</h2>
-                </div>
-                <div class="card-body">
-                    <div class="action-buttons inventory-actions">
-                        <button id="import-inventory-btn" class="btn-secondary">
-                            <i class="fas fa-file-import"></i> Import Inventory
-                        </button>
-                        <button id="export-inventory-btn" class="btn-secondary">
-                            <i class="fas fa-file-export"></i> Export Inventory
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </section>

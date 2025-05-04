@@ -60,7 +60,7 @@ $transaction_count = $daily_stats['transaction_count'] ? $daily_stats['transacti
 $transaction_item = new TransactionItem($db);
 $books_sold = $transaction_item->getTotalBooksSold();
 
-// Get new customers today (we don't have the Customer model loaded here)
+// Get new customers today
 $new_customers_query = "SELECT COUNT(*) as count FROM customers WHERE DATE(created_at) = CURDATE()";
 $stmt = $db->prepare($new_customers_query);
 $stmt->execute();
@@ -95,8 +95,6 @@ while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
                     <h2>Current Transaction #<span id="transaction-id"><?php echo $next_transaction_id; ?></span></h2>
                     <div class="transaction-options">
                         <button class="btn-option new-transaction" data-type="new"><i class="fas fa-plus"></i> New</button>
-                        <button class="btn-option hold-transaction" data-type="hold"><i class="fas fa-pause"></i> Hold</button>
-                        <button class="btn-option apply-discount" data-type="discount"><i class="fas fa-percent"></i> Discount</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -132,10 +130,6 @@ while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
                             <span>Tax (8%):</span>
                             <span id="tax">$0.00</span>
                         </div>
-                        <div class="summary-row">
-                            <span>Discount:</span>
-                            <span id="discount">$0.00</span>
-                        </div>
                         <div class="summary-row total">
                             <span>Total:</span>
                             <span id="total">$0.00</span>
@@ -147,29 +141,10 @@ while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
             <!-- Payment Section -->
             <div class="card">
                 <div class="card-header">
-                    <h2>Payment</h2>
+                    <h2>Cash Payment</h2>
                 </div>
                 <div class="card-body">
-                    <div class="payment-options">
-                        <button class="payment-btn active" data-method="credit_card">
-                            <i class="fas fa-credit-card"></i>
-                            <span>Credit Card</span>
-                        </button>
-                        <button class="payment-btn" data-method="cash">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span>Cash</span>
-                        </button>
-                        <button class="payment-btn" data-method="paypal">
-                            <i class="fab fa-paypal"></i>
-                            <span>PayPal</span>
-                        </button>
-                        <button class="payment-btn" data-method="other">
-                            <i class="fas fa-ellipsis-h"></i>
-                            <span>Other</span>
-                        </button>
-                    </div>
                     <div class="action-buttons">
-                        <button id="refund-btn" class="btn-secondary">Process Refund</button>
                         <button id="checkout-btn" class="btn-primary">Checkout ($0.00)</button>
                     </div>
                 </div>
@@ -211,8 +186,6 @@ while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
                                         <td>
                                             <?php if ($trans['status'] === 'completed'): ?>
                                                 <button class="btn-link receipt-btn" data-id="<?php echo $trans['transaction_id']; ?>">Receipt</button>
-                                            <?php elseif ($trans['status'] === 'on_hold'): ?>
-                                                <button class="btn-link resume-btn" data-id="<?php echo $trans['transaction_id']; ?>">Resume</button>
                                             <?php endif; ?>
                                         </td>
                                     </tr>

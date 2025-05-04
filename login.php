@@ -62,16 +62,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Bookstore POS</title>
+    <title>CMU Press</title>
     <link rel="stylesheet" href="assets/css/main.css">
     <link rel="stylesheet" href="assets/css/login.css">
 </head>
 <body>
     <div class="login-container">
         <div class="logo">
-            <span class="logo-text">logo</span>
+            <span class="logo">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="assets/img/logo.png"></span>
         </div>
-        <h1>Login to Bookstore POS</h1>
+        <h1>Login to CMU Press</h1>
         
         <?php if (!empty($error_message)): ?>
             <div class="alert alert-danger"><?php echo $error_message; ?></div>
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit" class="btn-primary">Login</button>
         </form>
         <div class="footer">
-            &copy; <?php echo date('Y'); ?> Bookstore POS. All rights reserved.
+            &copy; <?php echo date('Y'); ?> CMU Press
         </div>
     </div>
 </body>

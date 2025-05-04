@@ -31,9 +31,9 @@ if ($isAdmin) {
 }
 
 // Get system settings
-$taxRate = defined('TAX_RATE') ? TAX_RATE : 0.08; // Default to 8%
-$appName = defined('APP_NAME') ? APP_NAME : 'Bookstore POS';
-$appVersion = defined('APP_VERSION') ? APP_VERSION : '1.0.0';
+// $taxRate = defined('TAX_RATE') ? TAX_RATE : 0.08; // Default to 8%
+// $appName = defined('APP_NAME') ? APP_NAME : 'Bookstore POS';
+// $appVersion = defined('APP_VERSION') ? APP_VERSION : '1.0.0';
 
 // Process password change
 $passwordChanged = false;
@@ -171,48 +171,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         </div>
         
         <div class="right-column">
-            <div class="card">
-                <div class="card-header">
-                    <h2>System Settings</h2>
-                </div>
                 <div class="card-body">
-                    <div class="settings-section">
-                        <h3>Application Information</h3>
-                        <div class="app-info">
-                            <div class="info-field">
-                                <span class="field-label">App Name:</span>
-                                <span class="field-value"><?php echo htmlspecialchars($appName); ?></span>
-                            </div>
-                            <div class="info-field">
-                                <span class="field-label">Version:</span>
-                                <span class="field-value"><?php echo htmlspecialchars($appVersion); ?></span>
-                            </div>
-                            <div class="info-field">
-                                <span class="field-label">Tax Rate:</span>
-                                <span class="field-value"><?php echo ($taxRate * 100) . '%'; ?></span>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <?php if ($isAdmin): ?>
                     <div class="settings-section">
-                        <h3>Tax Settings</h3>
-                        <form id="tax-settings-form" class="tax-form">
-                            <div class="form-group">
-                                <label for="tax_rate">Tax Rate (%)</label>
-                                <input type="number" id="tax_rate" name="tax_rate" value="<?php echo $taxRate * 100; ?>" min="0" max="100" step="0.01">
-                            </div>
-                            <button type="submit" class="btn-primary">Save Tax Rate</button>
-                        </form>
-                    </div>
-                    
-                    <div class="settings-section">
-                        <h3>Database Backup</h3>
-                        <div class="backup-actions">
-                            <button id="backup-btn" class="btn-secondary"><i class="fas fa-download"></i> Backup Database</button>
-                            <button id="restore-btn" class="btn-secondary"><i class="fas fa-upload"></i> Restore Database</button>
-                        </div>
-                    </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -223,10 +184,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 </div>
                 <div class="card-body">
                     <div class="about-content">
-                        <p><strong><?php echo htmlspecialchars($appName); ?></strong> is a comprehensive Point of Sale system designed specifically for bookstores. It provides inventory management, sales processing, customer management, and reporting features.</p>
+                        <p><strong><?php echo htmlspecialchars($appName); ?></strong>CMU Press ISMS is a system designed to manage book inventory, sales, and reports.</p>
                         <p>Version: <?php echo htmlspecialchars($appVersion); ?></p>
-                        <p>Developed by: Bookstore POS Team</p>
-                        <p>Copyright &copy; <?php echo date('Y'); ?> Bookstore POS</p>
+                        <p><strong>Developed by:</strong><br>
+                        Rhimar Clifford Capunong <br>
+                        Audebos Hyro Busaco<br>
+                        Juhn Saint Sanchez </p>
                     </div>
                 </div>
             </div>

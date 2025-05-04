@@ -94,13 +94,11 @@ function generateSampleCustomerData($startDate, $endDate, $db) {
         $dateStr = $currentDate->format('Y-m-d');
         
         $count = mt_rand(1, 5);
-        $loyalty = mt_rand(0, $count);
         
         $customerData[] = [
             'date' => $dateStr,
             'formatted_date' => $currentDate->format('M j'),
-            'count' => $count,
-            'loyalty' => $loyalty
+            'count' => $count
         ];
         
         $currentDate->modify('+1 day');
@@ -158,13 +156,7 @@ switch ($reportType) {
         $summary = [
             'total_sales' => $totalSales,
             'total_transactions' => $totalTransactions,
-            'average_sale' => $averageSale,
-            'payment_methods' => [
-                ['method' => 'Credit Card', 'amount' => $totalSales * 0.65, 'percentage' => 65],
-                ['method' => 'Cash', 'amount' => $totalSales * 0.20, 'percentage' => 20],
-                ['method' => 'PayPal', 'amount' => $totalSales * 0.10, 'percentage' => 10],
-                ['method' => 'Other', 'amount' => $totalSales * 0.05, 'percentage' => 5]
-            ]
+            'average_sale' => $averageSale
         ];
         break;
     
@@ -204,25 +196,19 @@ switch ($reportType) {
         
         // Calculate summary data
         $totalNewCustomers = 0;
-        $totalLoyaltySignups = 0;
         
         foreach ($customerData as $day) {
             $totalNewCustomers += $day['count'];
-            $totalLoyaltySignups += $day['loyalty'];
         }
-        
-        $loyaltyRate = $totalNewCustomers > 0 ? ($totalLoyaltySignups / $totalNewCustomers) * 100 : 0;
         
         $summary = [
             'total_new_customers' => $totalNewCustomers,
-            'total_loyalty_signups' => $totalLoyaltySignups,
-            'loyalty_rate' => $loyaltyRate,
             'top_customers' => [
-                ['name' => 'John Smith', 'purchases' => 12, 'spent' => 387.65, 'loyalty' => 'Yes'],
-                ['name' => 'Mary Johnson', 'purchases' => 9, 'spent' => 276.50, 'loyalty' => 'Yes'],
-                ['name' => 'Robert Brown', 'purchases' => 7, 'spent' => 198.20, 'loyalty' => 'No'],
-                ['name' => 'Patricia Davis', 'purchases' => 6, 'spent' => 167.85, 'loyalty' => 'Yes'],
-                ['name' => 'Michael Wilson', 'purchases' => 5, 'spent' => 145.30, 'loyalty' => 'No']
+                ['name' => 'John Smith', 'purchases' => 12, 'spent' => 387.65],
+                ['name' => 'Mary Johnson', 'purchases' => 9, 'spent' => 276.50],
+                ['name' => 'Robert Brown', 'purchases' => 7, 'spent' => 198.20],
+                ['name' => 'Patricia Davis', 'purchases' => 6, 'spent' => 167.85],
+                ['name' => 'Michael Wilson', 'purchases' => 5, 'spent' => 145.30]
             ]
         ];
         break;
@@ -327,26 +313,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                         <div class="chart-container">
                             <canvas id="sales-chart"></canvas>
                         </div>
-                        
-                        <h3>Payment Method Breakdown</h3>
-                        <table class="report-table">
-                            <thead>
-                                <tr>
-                                    <th>Payment Method</th>
-                                    <th>Amount</th>
-                                    <th>Percentage</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($summary['payment_methods'] as $method): ?>
-                                <tr>
-                                    <td><?php echo $method['method']; ?></td>
-                                    <td>$<?php echo number_format($method['amount'], 2); ?></td>
-                                    <td><?php echo $method['percentage']; ?>%</td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
                     <?php elseif ($reportType === 'inventory'): ?>
                         <!-- Inventory Report -->
                         <div class="summary-cards">
@@ -400,14 +366,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                                 <div class="card-title">New Customers</div>
                                 <div class="card-value"><?php echo $summary['total_new_customers']; ?></div>
                             </div>
-                            <div class="summary-card">
-                                <div class="card-title">Loyalty Sign-ups</div>
-                                <div class="card-value"><?php echo $summary['total_loyalty_signups']; ?></div>
-                            </div>
-                            <div class="summary-card">
-                                <div class="card-title">Loyalty Rate</div>
-                                <div class="card-value"><?php echo number_format($summary['loyalty_rate'], 1); ?>%</div>
-                            </div>
                         </div>
                         
                         <div class="chart-container">
@@ -421,7 +379,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                                     <th>Customer</th>
                                     <th>Purchases</th>
                                     <th>Amount Spent</th>
-                                    <th>Loyalty Member</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -430,7 +387,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                                     <td><?php echo $customer['name']; ?></td>
                                     <td><?php echo $customer['purchases']; ?></td>
                                     <td>$<?php echo number_format($customer['spent'], 2); ?></td>
-                                    <td><?php echo $customer['loyalty']; ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -485,19 +441,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
         </div>
         
         <div class="right-column">
-            <div class="card">
-                <div class="card-header">
-                    <h2>Report Actions</h2>
-                </div>
-                <div class="card-body">
-                    <div class="action-buttons">
-                        <button id="export-pdf-btn" class="btn-secondary"><i class="fas fa-file-pdf"></i> Export PDF</button>
-                        <button id="export-csv-btn" class="btn-secondary"><i class="fas fa-file-csv"></i> Export CSV</button>
-                        <button id="print-report-btn" class="btn-secondary"><i class="fas fa-print"></i> Print Report</button>
-                    </div>
-                </div>
-            </div>
-            
             <?php if ($reportType === 'sales'): ?>
             <div class="card">
                 <div class="card-header">
@@ -514,7 +457,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                             echo $secondHalf > $firstHalf ? 'Upward' : ($secondHalf < $firstHalf ? 'Downward' : 'Stable');
                             ?>
                         </p>
-                        <p><strong>Popular Payment Method:</strong> Credit Card (65%)</p>
                     </div>
                 </div>
             </div>
@@ -546,9 +488,7 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                             echo $secondHalf > $firstHalf ? 'Increasing' : ($secondHalf < $firstHalf ? 'Decreasing' : 'Stable');
                             ?>
                         </p>
-                        <p><strong>Loyalty Conversion:</strong> <?php echo number_format($summary['loyalty_rate'], 1); ?>%</p>
                         <p><strong>Top Customer Value:</strong> $<?php echo number_format($summary['top_customers'][0]['spent'], 2); ?></p>
-                        <p><strong>Action Required:</strong> Focus on loyalty program conversion to increase customer retention.</p>
                     </div>
                 </div>
             </div>
@@ -661,7 +601,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const customersCtx = document.getElementById('customers-chart').getContext('2d');
     const customerDates = <?php echo json_encode(array_column($reportData, 'formatted_date')); ?>;
     const newCustomersData = <?php echo json_encode(array_column($reportData, 'count')); ?>;
-    const loyaltyData = <?php echo json_encode(array_column($reportData, 'loyalty')); ?>;
     
     new Chart(customersCtx, {
         type: 'bar',
@@ -672,11 +611,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     label: 'New Customers',
                     data: newCustomersData,
                     backgroundColor: 'rgba(33, 150, 243, 0.7)'
-                },
-                {
-                    label: 'Loyalty Sign-ups',
-                    data: loyaltyData,
-                    backgroundColor: 'rgba(156, 39, 176, 0.7)'
                 }
             ]
         },
@@ -729,46 +663,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     <?php endif; ?>
-    
-    // Export and print handlers
-    const exportPdfBtn = document.getElementById('export-pdf-btn');
-    const exportCsvBtn = document.getElementById('export-csv-btn');
-    const printReportBtn = document.getElementById('print-report-btn');
-    
-    if (exportPdfBtn) {
-        exportPdfBtn.addEventListener('click', function() {
-            showNotification('Preparing PDF export...', 'info');
-            
-            // In a real application, this would use a library like jsPDF to generate a PDF
-            // For this demo, we'll just show a notification
-            setTimeout(() => {
-                showNotification('PDF export completed', 'success');
-            }, 1500);
-        });
-    }
-    
-    if (exportCsvBtn) {
-        exportCsvBtn.addEventListener('click', function() {
-            showNotification('Preparing CSV export...', 'info');
-            
-            // In a real application, this would generate a CSV file
-            // For this demo, we'll just show a notification
-            setTimeout(() => {
-                showNotification('CSV export completed', 'success');
-            }, 1500);
-        });
-    }
-    
-    if (printReportBtn) {
-        printReportBtn.addEventListener('click', function() {
-            showNotification('Preparing print view...', 'info');
-            
-            // In a real application, this would open a print dialog
-            // For this demo, we'll just use the browser's print function
-            setTimeout(() => {
-                window.print();
-            }, 500);
-        });
-    }
+
 });
 </script>

@@ -25,7 +25,7 @@ $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'pos';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bookstore POS</title>
+    <title>CMU Press ISMS</title>
     <link rel="stylesheet" href="assets/css/main.css">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -34,10 +34,11 @@ $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'pos';
     <?php endif; ?>
 </head>
 <body>
+<div id="header-spacer"></div>
     <?php if ($isLoggedIn && $currentPage !== 'login.php' && $currentPage !== 'install.php'): ?>
     <header>
         <div class="logo">
-            <span class="logo-text">CMU Press System</span>
+            <span class="logo-text">CMU Press</span>
         </div>
         <div class="search-container">
             <input type="text" id="search-input" placeholder="Search books by title, author, or ISBN...">
