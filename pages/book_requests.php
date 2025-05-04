@@ -120,13 +120,13 @@ $statusStmt = $db->prepare($statusQuery);
 $statusStmt->execute();
 $statusCounts = [
     'pending' => 0,
-    'ordered' => 0,
-    'fulfilled' => 0,
-    'cancelled' => 0
+    'fulfilled' => 0
 ];
 
 while ($row = $statusStmt->fetch(PDO::FETCH_ASSOC)) {
-    $statusCounts[$row['status']] = $row['count'];
+    if ($row['status'] === 'pending' || $row['status'] === 'fulfilled') {
+        $statusCounts[$row['status']] = $row['count'];
+    }
 }
 
 $totalRequests = array_sum($statusCounts);
@@ -172,9 +172,7 @@ while ($row = $priorityStmt->fetch(PDO::FETCH_ASSOC)) {
                                 <select name="status" id="status-filter">
                                     <option value="all" <?php echo $statusFilter === 'all' ? 'selected' : ''; ?>>All Statuses</option>
                                     <option value="pending" <?php echo $statusFilter === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                                    <option value="ordered" <?php echo $statusFilter === 'ordered' ? 'selected' : ''; ?>>Ordered</option>
                                     <option value="fulfilled" <?php echo $statusFilter === 'fulfilled' ? 'selected' : ''; ?>>Fulfilled</option>
-                                    <option value="cancelled" <?php echo $statusFilter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                                 </select>
                             </div>
                             
@@ -220,22 +218,22 @@ while ($row = $priorityStmt->fetch(PDO::FETCH_ASSOC)) {
                                             <td><?php echo htmlspecialchars($request['title']); ?></td>
                                             <td><?php echo htmlspecialchars($request['author']); ?></td>
                                             <td><?php echo htmlspecialchars($request['requested_by']); ?></td>
-                                            <td><?php echo date('M j, Y', strtotime($request['request_date'])); ?></td>
-                                            <td><?php echo getPriorityBadge($request['priority']); ?></td>
+                                            <td><?php echo date('M d, Y', strtotime($request['request_date'])); ?></td>
+                                            <td>
+                                                <span class="priority <?php echo $request['priority']; ?>-priority">
+                                                    <?php echo ucfirst($request['priority']); ?>
+                                                </span>
+                                            </td>
                                             <td><?php echo $request['quantity']; ?></td>
-                                            <td><?php echo getStatusBadge($request['status']); ?></td>
+                                            <td>
+                                                <span class="status <?php echo $request['status']; ?>">
+                                                    <?php echo ucfirst($request['status']); ?>
+                                                </span>
+                                            </td>
                                             <td class="actions">
-                                                <button class="edit-request-btn" data-id="<?php echo $request['request_id']; ?>" title="Edit">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
                                                 <?php if ($request['status'] === 'pending'): ?>
-                                                    <button class="fulfill-request-btn" data-id="<?php echo $request['request_id']; ?>" title="Fulfill">
+                                                    <button class="fulfill-request-btn" data-id="<?php echo $request['request_id']; ?>" title="Mark as Fulfilled">
                                                         <i class="fas fa-check"></i>
-                                                    </button>
-                                                <?php endif; ?>
-                                                <?php if ($request['status'] === 'pending'): ?>
-                                                    <button class="cancel-request-btn" data-id="<?php echo $request['request_id']; ?>" title="Cancel">
-                                                        <i class="fas fa-times"></i>
                                                     </button>
                                                 <?php endif; ?>
                                             </td>
@@ -282,25 +280,11 @@ while ($row = $priorityStmt->fetch(PDO::FETCH_ASSOC)) {
                                 <div class="stat-value"><?php echo $statusCounts['pending']; ?></div>
                             </div>
                             <div class="stat-bar">
-                                <div class="stat-label">Ordered</div>
-                                <div class="bar-container">
-                                    <div class="bar" style="width: <?php echo $totalRequests > 0 ? ($statusCounts['ordered'] / $totalRequests * 100) . '%' : '0%'; ?>; background-color: #2196f3;"></div>
-                                </div>
-                                <div class="stat-value"><?php echo $statusCounts['ordered']; ?></div>
-                            </div>
-                            <div class="stat-bar">
                                 <div class="stat-label">Fulfilled</div>
                                 <div class="bar-container">
                                     <div class="bar" style="width: <?php echo $totalRequests > 0 ? ($statusCounts['fulfilled'] / $totalRequests * 100) . '%' : '0%'; ?>; background-color: #4caf50;"></div>
                                 </div>
                                 <div class="stat-value"><?php echo $statusCounts['fulfilled']; ?></div>
-                            </div>
-                            <div class="stat-bar">
-                                <div class="stat-label">Cancelled</div>
-                                <div class="bar-container">
-                                    <div class="bar" style="width: <?php echo $totalRequests > 0 ? ($statusCounts['cancelled'] / $totalRequests * 100) . '%' : '0%'; ?>; background-color: #f44336;"></div>
-                                </div>
-                                <div class="stat-value"><?php echo $statusCounts['cancelled']; ?></div>
                             </div>
                         </div>
                     </div>
@@ -370,9 +354,7 @@ while ($row = $priorityStmt->fetch(PDO::FETCH_ASSOC)) {
             <label for="request-status">Status</label>
             <select id="request-status">
                 <option value="pending">Pending</option>
-                <option value="ordered">Ordered</option>
                 <option value="fulfilled">Fulfilled</option>
-                <option value="cancelled">Cancelled</option>
             </select>
         </div>
         <p class="form-note">* Required fields</p>

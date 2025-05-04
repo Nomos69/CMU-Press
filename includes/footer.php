@@ -1,4 +1,6 @@
 <!-- Modal templates -->
+<div id="notifications-container"></div>
+
 <div id="modal-overlay" class="hidden">
         <div id="modal-container">
             <div id="modal-header">

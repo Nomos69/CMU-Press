@@ -156,9 +156,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                                     <td><?php echo date('M j, Y', strtotime($user['created_at'])); ?></td>
                                     <td class="actions">
                                         <button class="edit-user-btn" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-edit"></i></button>
-                                        <?php if ($user['user_id'] != $currentUserId): ?>
-                                        <button class="delete-user-btn" data-id="<?php echo $user['user_id']; ?>"><i class="fas fa-trash"></i></button>
-                                        <?php endif; ?>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>

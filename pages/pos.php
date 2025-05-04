@@ -209,15 +209,11 @@ try {
                     <div class="transaction-summary">
                         <div class="summary-row">
                             <span>Subtotal:</span>
-                            <span id="subtotal">$0.00</span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Tax (8%):</span>
-                            <span id="tax">$0.00</span>
+                            <span id="subtotal">₱ 0.00</span>
                         </div>
                         <div class="summary-row total">
                             <span>Total:</span>
-                            <span id="total">$0.00</span>
+                            <span id="total">₱ 0.00</span>
                         </div>
                     </div>
                 </div>
@@ -230,25 +226,13 @@ try {
                 </div>
                 <div class="card-body">
                     <div class="payment-options">
-                        <button class="payment-btn active" data-method="credit_card">
-                            <i class="fas fa-credit-card"></i>
-                            <span>Credit Card</span>
-                        </button>
-                        <button class="payment-btn" data-method="cash">
+                        <button class="payment-btn active" data-method="cash">
                             <i class="fas fa-money-bill-wave"></i>
                             <span>Cash</span>
                         </button>
-                        <button class="payment-btn" data-method="paypal">
-                            <i class="fab fa-paypal"></i>
-                            <span>PayPal</span>
-                        </button>
-                        <button class="payment-btn" data-method="other">
-                            <i class="fas fa-ellipsis-h"></i>
-                            <span>Other</span>
-                        </button>
                     </div>
                     <div class="action-buttons">
-                        <button id="checkout-btn" class="btn-primary">Checkout ($0.00)</button>
+                        <button id="checkout-btn" class="btn-primary">Checkout (₱ 0.00)</button>
                     </div>
                 </div>
             </div>
@@ -269,13 +253,12 @@ try {
                                 <th>ITEMS</th>
                                 <th>TOTAL</th>
                                 <th>STATUS</th>
-                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($recent_transactions_list)): ?>
                                 <tr>
-                                    <td colspan="7" class="no-data">No recent transactions.</td>
+                                    <td colspan="6" class="no-data">No recent transactions.</td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($recent_transactions_list as $trans): ?>
@@ -286,11 +269,6 @@ try {
                                         <td><?php echo $trans['item_count']; ?></td>
                                         <td><?php echo formatMoney($trans['total']); ?></td>
                                         <td><?php echo getStatusBadge($trans['status']); ?></td>
-                                        <td>
-                                            <?php if ($trans['status'] === 'completed'): ?>
-                                                <button class="btn-link receipt-btn" data-id="<?php echo $trans['transaction_id']; ?>">Receipt</button>
-                                            <?php endif; ?>
-                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -378,38 +356,6 @@ try {
                 </div>
             </div>
             
-            <!-- Today's Stats -->
-            <div class="card">
-                <div class="card-header">
-                    <h2>Today's Stats</h2>
-                </div>
-                <div class="card-body">
-                    <div class="stats-row">
-                        <div class="stat-card blue">
-                            <h3>Sales</h3>
-                            <div class="stat-value">$<?php echo number_format($total_sales, 2); ?></div>
-                            <div class="stat-compare">+<?php echo $transaction_count; ?> transactions</div>
-                        </div>
-                        <div class="stat-card purple">
-                            <h3>Books Sold</h3>
-                            <div class="stat-value"><?php echo $books_sold; ?></div>
-                            <div class="stat-compare">+12% from yesterday</div>
-                        </div>
-                    </div>
-                    <div class="stats-row">
-                        <div class="stat-card green">
-                            <h3>New Customers</h3>
-                            <div class="stat-value"><?php echo $new_customers; ?></div>
-                            <div class="stat-compare"><?php echo $loyalty_customers; ?> with loyalty cards</div>
-                        </div>
-                        <div class="stat-card orange">
-                            <h3>Book Requests</h3>
-                            <div class="stat-value"><?php echo $pending_count; ?></div>
-                            <div class="stat-compare"><?php echo $high_priority_count; ?> high priority</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </section>

@@ -13,6 +13,11 @@ $transactionItem = new TransactionItem($db);
 // Get report type from URL parameter or default to 'sales'
 $reportType = isset($_GET['report_type']) ? sanitizeInput($_GET['report_type']) : 'sales';
 
+// If inventory report is selected, change to sales report since we removed that option
+if ($reportType === 'inventory') {
+    $reportType = 'sales';
+}
+
 // Get date range from URL parameters or default to last 30 days
 $endDate = date('Y-m-d');
 $startDate = date('Y-m-d', strtotime('-30 days'));
@@ -160,35 +165,6 @@ switch ($reportType) {
         ];
         break;
     
-    case 'inventory':
-        $reportTitle = 'Inventory Report';
-        $inventoryData = generateSampleInventoryData($db);
-        $reportData = $inventoryData;
-        
-        // Calculate summary data
-        $totalItems = 0;
-        $totalValue = 0;
-        $lowStockItems = 0;
-        $outOfStockItems = 0;
-        
-        foreach ($inventoryData as $category) {
-            $totalItems += $category['in_stock'] + $category['low_stock'] + $category['out_of_stock'];
-            $lowStockItems += $category['low_stock'];
-            $outOfStockItems += $category['out_of_stock'];
-            
-            // Calculate approximate value (average book price * quantity)
-            $averagePrice = 19.99;
-            $totalValue += ($category['in_stock'] + $category['low_stock']) * $averagePrice;
-        }
-        
-        $summary = [
-            'total_items' => $totalItems,
-            'total_value' => $totalValue,
-            'low_stock_items' => $lowStockItems,
-            'out_of_stock_items' => $outOfStockItems
-        ];
-        break;
-    
     case 'customers':
         $reportTitle = 'Customer Report';
         $customerData = generateSampleCustomerData($startDate, $endDate, $db);
@@ -264,7 +240,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                             <label for="report_type">Report Type</label>
                             <select id="report_type" name="report_type">
                                 <option value="sales" <?php echo $reportType === 'sales' ? 'selected' : ''; ?>>Sales Report</option>
-                                <option value="inventory" <?php echo $reportType === 'inventory' ? 'selected' : ''; ?>>Inventory Report</option>
                                 <option value="customers" <?php echo $reportType === 'customers' ? 'selected' : ''; ?>>Customer Report</option>
                                 <option value="bestsellers" <?php echo $reportType === 'bestsellers' ? 'selected' : ''; ?>>Bestsellers Report</option>
                             </select>
@@ -313,52 +288,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                         <div class="chart-container">
                             <canvas id="sales-chart"></canvas>
                         </div>
-                    <?php elseif ($reportType === 'inventory'): ?>
-                        <!-- Inventory Report -->
-                        <div class="summary-cards">
-                            <div class="summary-card">
-                                <div class="card-title">Total Items</div>
-                                <div class="card-value"><?php echo $summary['total_items']; ?></div>
-                            </div>
-                            <div class="summary-card">
-                                <div class="card-title">Inventory Value</div>
-                                <div class="card-value">$<?php echo number_format($summary['total_value'], 2); ?></div>
-                            </div>
-                            <div class="summary-card">
-                                <div class="card-title">Low Stock Items</div>
-                                <div class="card-value"><?php echo $summary['low_stock_items']; ?></div>
-                            </div>
-                            <div class="summary-card">
-                                <div class="card-title">Out of Stock</div>
-                                <div class="card-value"><?php echo $summary['out_of_stock_items']; ?></div>
-                            </div>
-                        </div>
-                        
-                        <div class="chart-container">
-                            <canvas id="inventory-chart"></canvas>
-                        </div>
-                        
-                        <h3>Inventory by Category</h3>
-                        <table class="report-table">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>In Stock</th>
-                                    <th>Low Stock</th>
-                                    <th>Out of Stock</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($reportData as $item): ?>
-                                <tr>
-                                    <td><?php echo $item['category']; ?></td>
-                                    <td><?php echo $item['in_stock']; ?></td>
-                                    <td><?php echo $item['low_stock']; ?></td>
-                                    <td><?php echo $item['out_of_stock']; ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
                     <?php elseif ($reportType === 'customers'): ?>
                         <!-- Customer Report -->
                         <div class="summary-cards">
@@ -371,26 +300,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                         <div class="chart-container">
                             <canvas id="customers-chart"></canvas>
                         </div>
-                        
-                        <h3>Top Customers</h3>
-                        <table class="report-table">
-                            <thead>
-                                <tr>
-                                    <th>Customer</th>
-                                    <th>Purchases</th>
-                                    <th>Amount Spent</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($summary['top_customers'] as $customer): ?>
-                                <tr>
-                                    <td><?php echo $customer['name']; ?></td>
-                                    <td><?php echo $customer['purchases']; ?></td>
-                                    <td>$<?php echo number_format($customer['spent'], 2); ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
                     <?php elseif ($reportType === 'bestsellers'): ?>
                         <!-- Bestsellers Report -->
                         <div class="summary-cards">
@@ -400,41 +309,17 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                             </div>
                             <div class="summary-card">
                                 <div class="card-title">Total Revenue</div>
-                                <div class="card-value">$<?php echo number_format($summary['total_revenue'], 2); ?></div>
+                                <div class="card-value">₱<?php echo number_format($summary['total_revenue'], 2); ?></div>
                             </div>
                             <div class="summary-card">
                                 <div class="card-title">Average Price</div>
-                                <div class="card-value">$<?php echo number_format($summary['average_price'], 2); ?></div>
+                                <div class="card-value">₱<?php echo number_format($summary['average_price'], 2); ?></div>
                             </div>
                         </div>
                         
                         <div class="chart-container">
                             <canvas id="bestsellers-chart"></canvas>
                         </div>
-                        
-                        <h3>Top 10 Bestselling Books</h3>
-                        <table class="report-table">
-                            <thead>
-                                <tr>
-                                    <th>Rank</th>
-                                    <th>Title</th>
-                                    <th>Author</th>
-                                    <th>Copies Sold</th>
-                                    <th>Revenue</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($reportData as $index => $book): ?>
-                                <tr>
-                                    <td><?php echo $index + 1; ?></td>
-                                    <td><?php echo $book['title']; ?></td>
-                                    <td><?php echo $book['author']; ?></td>
-                                    <td><?php echo $book['copies']; ?></td>
-                                    <td>$<?php echo number_format($book['revenue'], 2); ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
                     <?php endif; ?>
                 </div>
             </div>
@@ -460,20 +345,6 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                     </div>
                 </div>
             </div>
-            <?php elseif ($reportType === 'inventory'): ?>
-            <div class="card">
-                <div class="card-header">
-                    <h2>Inventory Insights</h2>
-                </div>
-                <div class="card-body">
-                    <div class="insights">
-                        <p><strong>Largest Category:</strong> <?php echo $reportData[array_search(max(array_column($reportData, 'in_stock')), array_column($reportData, 'in_stock'))]['category']; ?></p>
-                        <p><strong>Most Out of Stock:</strong> <?php echo $reportData[array_search(max(array_column($reportData, 'out_of_stock')), array_column($reportData, 'out_of_stock'))]['category']; ?></p>
-                        <p><strong>Low Stock Percentage:</strong> <?php echo number_format(($summary['low_stock_items'] / $summary['total_items']) * 100, 1); ?>%</p>
-                        <p><strong>Action Required:</strong> Reorder items from the <?php echo $reportData[array_search(max(array_column($reportData, 'low_stock')), array_column($reportData, 'low_stock'))]['category']; ?> category.</p>
-                    </div>
-                </div>
-            </div>
             <?php elseif ($reportType === 'customers'): ?>
             <div class="card">
                 <div class="card-header">
@@ -488,7 +359,7 @@ $formattedEndDate = date('M j, Y', strtotime($endDate));
                             echo $secondHalf > $firstHalf ? 'Increasing' : ($secondHalf < $firstHalf ? 'Decreasing' : 'Stable');
                             ?>
                         </p>
-                        <p><strong>Top Customer Value:</strong> $<?php echo number_format($summary['top_customers'][0]['spent'], 2); ?></p>
+                        <p><strong>Top Customer Value:</strong> ₱<?php echo number_format($summary['top_customers'][0]['spent'], 2); ?></p>
                     </div>
                 </div>
             </div>
@@ -548,50 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             return '$' + value;
                         }
                     }
-                }
-            }
-        }
-    });
-    <?php elseif ($reportType === 'inventory'): ?>
-    // Inventory chart
-    const inventoryCtx = document.getElementById('inventory-chart').getContext('2d');
-    const categories = <?php echo json_encode(array_column($reportData, 'category')); ?>;
-    const inStockData = <?php echo json_encode(array_column($reportData, 'in_stock')); ?>;
-    const lowStockData = <?php echo json_encode(array_column($reportData, 'low_stock')); ?>;
-    const outOfStockData = <?php echo json_encode(array_column($reportData, 'out_of_stock')); ?>;
-    
-    new Chart(inventoryCtx, {
-        type: 'bar',
-        data: {
-            labels: categories,
-            datasets: [
-                {
-                    label: 'In Stock',
-                    data: inStockData,
-                    backgroundColor: 'rgba(76, 175, 80, 0.7)'
-                },
-                {
-                    label: 'Low Stock',
-                    data: lowStockData,
-                    backgroundColor: 'rgba(255, 152, 0, 0.7)'
-                },
-                {
-                    label: 'Out of Stock',
-                    data: outOfStockData,
-                    backgroundColor: 'rgba(244, 67, 54, 0.7)'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    stacked: true
-                },
-                y: {
-                    stacked: true,
-                    beginAtZero: true
                 }
             }
         }

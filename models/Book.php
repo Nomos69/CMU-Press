@@ -12,6 +12,7 @@ class Book {
     public $price;
     public $stock_qty;
     public $low_stock_threshold;
+    public $college;
     public $created_at;
     public $updated_at;
     
@@ -20,7 +21,7 @@ class Book {
         $this->conn = $db;
     }
     
-    // Get all books
+    // Get all books (non-deleted only)
     public function getAll() {
         $query = "SELECT * FROM " . $this->table_name . " ORDER BY title ASC";
         $stmt = $this->conn->prepare($query);
@@ -45,6 +46,7 @@ class Book {
             $this->price = $row['price'];
             $this->stock_qty = $row['stock_qty'];
             $this->low_stock_threshold = $row['low_stock_threshold'];
+            $this->college = $row['college'];
             $this->created_at = $row['created_at'];
             $this->updated_at = $row['updated_at'];
             
@@ -58,7 +60,8 @@ class Book {
     public function create() {
         $query = "INSERT INTO " . $this->table_name . "
                 SET title=:title, author=:author, isbn=:isbn, 
-                    price=:price, stock_qty=:stock_qty, low_stock_threshold=:low_stock_threshold";
+                    price=:price, stock_qty=:stock_qty, low_stock_threshold=:low_stock_threshold,
+                    college=:college";
         
         $stmt = $this->conn->prepare($query);
         
@@ -69,6 +72,7 @@ class Book {
         $this->price = htmlspecialchars(strip_tags($this->price));
         $this->stock_qty = htmlspecialchars(strip_tags($this->stock_qty));
         $this->low_stock_threshold = htmlspecialchars(strip_tags($this->low_stock_threshold));
+        $this->college = htmlspecialchars(strip_tags($this->college));
         
         // Bind values
         $stmt->bindParam(":title", $this->title);
@@ -77,6 +81,7 @@ class Book {
         $stmt->bindParam(":price", $this->price);
         $stmt->bindParam(":stock_qty", $this->stock_qty);
         $stmt->bindParam(":low_stock_threshold", $this->low_stock_threshold);
+        $stmt->bindParam(":college", $this->college);
         
         // Execute query
         if($stmt->execute()) {
@@ -91,7 +96,8 @@ class Book {
     public function update() {
         $query = "UPDATE " . $this->table_name . "
                 SET title=:title, author=:author, isbn=:isbn, 
-                    price=:price, stock_qty=:stock_qty, low_stock_threshold=:low_stock_threshold
+                    price=:price, stock_qty=:stock_qty, low_stock_threshold=:low_stock_threshold,
+                    college=:college
                 WHERE book_id=:book_id";
         
         $stmt = $this->conn->prepare($query);
@@ -104,6 +110,7 @@ class Book {
         $this->price = htmlspecialchars(strip_tags($this->price));
         $this->stock_qty = htmlspecialchars(strip_tags($this->stock_qty));
         $this->low_stock_threshold = htmlspecialchars(strip_tags($this->low_stock_threshold));
+        $this->college = htmlspecialchars(strip_tags($this->college));
         
         // Bind values
         $stmt->bindParam(":book_id", $this->book_id);
@@ -113,6 +120,7 @@ class Book {
         $stmt->bindParam(":price", $this->price);
         $stmt->bindParam(":stock_qty", $this->stock_qty);
         $stmt->bindParam(":low_stock_threshold", $this->low_stock_threshold);
+        $stmt->bindParam(":college", $this->college);
         
         // Execute query
         if($stmt->execute()) {
@@ -122,8 +130,9 @@ class Book {
         return false;
     }
     
-    // Delete book
+    // Delete book (now calls softDelete for compatibility)
     public function delete() {
+        // Permanently delete the book from database
         $query = "DELETE FROM " . $this->table_name . " WHERE book_id = ?";
         $stmt = $this->conn->prepare($query);
         
@@ -141,10 +150,10 @@ class Book {
         return false;
     }
     
-    // Search books
+    // Search books (non-deleted only)
     public function search($keywords) {
         $query = "SELECT * FROM " . $this->table_name . " 
-                  WHERE title LIKE ? OR author LIKE ? OR isbn LIKE ? 
+                  WHERE title LIKE ? OR author LIKE ? OR isbn LIKE ?
                   ORDER BY title ASC";
         
         $stmt = $this->conn->prepare($query);
@@ -163,7 +172,7 @@ class Book {
         return $stmt;
     }
     
-    // Get low stock books
+    // Get low stock books (non-deleted only)
     public function getLowStock() {
         $query = "SELECT * FROM " . $this->table_name . " 
                   WHERE stock_qty <= low_stock_threshold 
@@ -199,7 +208,7 @@ class Book {
         return false;
     }
     
-    // Count total books
+    // Count total books (non-deleted only)
     public function count() {
         $query = "SELECT COUNT(*) as total_count FROM " . $this->table_name;
         $stmt = $this->conn->prepare($query);
@@ -207,6 +216,25 @@ class Book {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         
         return $row['total_count'];
+    }
+    
+    // Get all unique colleges
+    public function getAllColleges() {
+        $query = "SELECT DISTINCT college FROM " . $this->table_name . " WHERE college IS NOT NULL ORDER BY college ASC";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+        
+        return $stmt;
+    }
+    
+    // Get books by college
+    public function getByCollege($college) {
+        $query = "SELECT * FROM " . $this->table_name . " WHERE college = ? ORDER BY title ASC";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(1, $college);
+        $stmt->execute();
+        
+        return $stmt;
     }
 }
 ?>

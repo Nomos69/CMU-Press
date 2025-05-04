@@ -88,38 +88,38 @@ class User {
         return false;
     }
     
-    // Update user
+    /**
+     * Update the user
+     * @return boolean True if updated, false otherwise
+     */
     public function update() {
-        // Check if username already exists (except for current user)
-        if ($this->usernameExists(true)) {
-            return false;
-        }
-        
-        // Query to update record
+        // Update query
         $query = "UPDATE " . $this->table_name . "
-                SET username=:username, name=:name, role=:role
-                WHERE user_id=:user_id";
-        
-        // Prepare query
+                SET name = :name, 
+                    username = :username, 
+                    role = :role
+                WHERE user_id = :user_id";
+
+        // Prepare statement
         $stmt = $this->conn->prepare($query);
-        
+
         // Sanitize data
-        $this->user_id = htmlspecialchars(strip_tags($this->user_id));
-        $this->username = htmlspecialchars(strip_tags($this->username));
         $this->name = htmlspecialchars(strip_tags($this->name));
+        $this->username = htmlspecialchars(strip_tags($this->username));
         $this->role = htmlspecialchars(strip_tags($this->role));
-        
-        // Bind values
-        $stmt->bindParam(":user_id", $this->user_id);
-        $stmt->bindParam(":username", $this->username);
+        $this->user_id = htmlspecialchars(strip_tags($this->user_id));
+
+        // Bind data
         $stmt->bindParam(":name", $this->name);
+        $stmt->bindParam(":username", $this->username);
         $stmt->bindParam(":role", $this->role);
-        
+        $stmt->bindParam(":user_id", $this->user_id);
+
         // Execute query
-        if ($stmt->execute()) {
+        if($stmt->execute()){
             return true;
         }
-        
+
         return false;
     }
     

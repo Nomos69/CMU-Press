@@ -12,16 +12,30 @@ $book = new Book($db);
 // Get search parameter
 $search = isset($_GET['search']) ? sanitizeInput($_GET['search']) : '';
 
+// Get college filter parameter
+$collegeFilter = isset($_GET['college']) ? sanitizeInput($_GET['college']) : '';
+
 // Get pagination parameters
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $itemsPerPage = 10;
 
+// Get all unique colleges for the filter dropdown
+$collegesStmt = $book->getAllColleges();
+$colleges = [];
+while ($row = $collegesStmt->fetch(PDO::FETCH_ASSOC)) {
+    if (!empty($row['college'])) {
+        $colleges[] = $row['college'];
+    }
+}
+
 // Get books count
 $totalItems = $book->count();
 
-// Get books based on search or all books
+// Get books based on search, college filter, or all books
 if (!empty($search)) {
     $stmt = $book->search($search);
+} else if (!empty($collegeFilter)) {
+    $stmt = $book->getByCollege($collegeFilter);
 } else {
     // Calculate offset for pagination
     $offset = ($page - 1) * $itemsPerPage;
@@ -73,13 +87,27 @@ foreach ($books as $book) {
                                 <input type="text" name="search" placeholder="Search books..." value="<?php echo $search; ?>">
                                 <button type="submit"><i class="fas fa-search"></i></button>
                             </div>
+                            <div class="filter-group">
+                                <select name="college" id="college-filter" onchange="this.form.submit()">
+                                    <option value="">All Colleges</option>
+                                    <?php foreach ($colleges as $college): ?>
+                                        <option value="<?php echo $college; ?>" <?php echo $collegeFilter === $college ? 'selected' : ''; ?>>
+                                            <?php echo $college; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
                         </form>
                     </div>
                     
-                    <?php if (!empty($search)): ?>
+                    <?php if (!empty($search) || !empty($collegeFilter)): ?>
                         <div class="search-results-info">
-                            Showing search results for: <strong><?php echo $search; ?></strong>
-                            <a href="index.php?tab=inventory" class="clear-search">Clear search</a>
+                            <?php if (!empty($search)): ?>
+                                Showing search results for: <strong><?php echo $search; ?></strong>
+                            <?php elseif (!empty($collegeFilter)): ?>
+                                Showing books from: <strong><?php echo $collegeFilter; ?></strong>
+                            <?php endif; ?>
+                            <a href="index.php?tab=inventory" class="clear-search">Clear filters</a>
                         </div>
                     <?php endif; ?>
                     
@@ -91,6 +119,7 @@ foreach ($books as $book) {
                                     <th>Author</th>
                                     <th>ISBN</th>
                                     <th>Price</th>
+                                    <th>College</th>
                                     <th>Stock</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -103,22 +132,17 @@ foreach ($books as $book) {
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($books as $book): ?>
-                                        <tr>
+                                        <tr data-id="<?php echo $book['book_id']; ?>" data-stock="<?php echo $book['stock_qty']; ?>" data-threshold="<?php echo $book['low_stock_threshold']; ?>">
                                             <td><?php echo htmlspecialchars($book['title']); ?></td>
                                             <td><?php echo htmlspecialchars($book['author']); ?></td>
                                             <td><?php echo $book['isbn'] ? htmlspecialchars($book['isbn']) : '-'; ?></td>
                                             <td><?php echo formatMoney($book['price']); ?></td>
+                                            <td><?php echo !empty($book['college']) ? htmlspecialchars($book['college']) : '-'; ?></td>
                                             <td><?php echo $book['stock_qty']; ?></td>
                                             <td><?php echo getInventoryStatusBadge($book['stock_qty'], $book['low_stock_threshold']); ?></td>
                                             <td class="actions">
                                                 <button class="edit-book-btn" data-id="<?php echo $book['book_id']; ?>" title="Edit">
                                                     <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button class="reorder-book-btn" data-id="<?php echo $book['book_id']; ?>" title="Reorder">
-                                                    <i class="fas fa-truck"></i>
-                                                </button>
-                                                <button class="delete-book-btn" data-id="<?php echo $book['book_id']; ?>" title="Delete">
-                                                    <i class="fas fa-trash"></i>
                                                 </button>
                                             </td>
                                         </tr>
@@ -128,7 +152,7 @@ foreach ($books as $book) {
                         </table>
                     </div>
                     
-                    <?php if (!empty($search)): ?>
+                    <?php if (!empty($search) || !empty($collegeFilter)): ?>
                         <!-- No pagination for search results -->
                     <?php else: ?>
                         <div class="pagination-container">
@@ -161,39 +185,6 @@ foreach ($books as $book) {
                     </div>
                 </div>
             </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h2>Low Stock Items</h2>
-                </div>
-                <div class="card-body">
-                    <?php
-                    $lowStockItems = array_filter($books, function($book) {
-                        return $book['stock_qty'] <= $book['low_stock_threshold'] && $book['stock_qty'] > 0;
-                    });
-                    
-                    if (empty($lowStockItems)):
-                    ?>
-                        <div class="no-data">No low stock items.</div>
-                    <?php else: ?>
-                        <div class="low-stock-items">
-                            <?php foreach (array_slice($lowStockItems, 0, 5) as $item): ?>
-                                <div class="low-stock-item">
-                                    <div class="item-info">
-                                        <h3><?php echo htmlspecialchars($item['title']); ?></h3>
-                                        <p><?php echo htmlspecialchars($item['author']); ?></p>
-                                    </div>
-                                    <div class="item-stock">
-                                        <span class="remaining"><?php echo $item['stock_qty']; ?></span>
-                                        <span class="remaining-label">remaining</span>
-                                        <button class="reorder-btn" data-id="<?php echo $item['book_id']; ?>">Reorder</button>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
         </div>
     </div>
 </section>
@@ -213,6 +204,22 @@ foreach ($books as $book) {
             <label for="book-isbn">ISBN</label>
             <input type="text" id="book-isbn" placeholder="Enter ISBN">
         </div>
+        <div class="form-group">
+            <label for="book-college">College</label>
+            <select id="book-college">
+                <option value="">Select College</option>
+                <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                <option value="College of Agriculture">College of Agriculture</option>
+                <option value="College of Education">College of Education</option>
+                <option value="College of Engineering">College of Engineering</option>
+                <option value="College of Forestry and Environmental Sciences">College of Forestry and Environmental Sciences</option>
+                <option value="College of Human Ecology">College of Human Ecology</option>
+                <option value="College of Nursing">College of Nursing</option>
+                <option value="College of Veterinary Medicine">College of Veterinary Medicine</option>
+                <option value="College of Information Sciences And Computing">College of Information Sciences And Computing</option>
+                <option value="College of Business and Management">College of Business and Management</option>
+            </select>
+        </div>
         <div class="form-row">
             <div class="form-group">
                 <label for="book-price">Price*</label>
@@ -231,25 +238,4 @@ foreach ($books as $book) {
     </div>
 </template>
 
-<!-- Reorder Book Modal Template -->
-<template id="reorder-template">
-    <div class="reorder-form">
-        <div class="form-group">
-            <label for="reorder-book">Book</label>
-            <input type="text" id="reorder-book" readonly>
-        </div>
-        <div class="form-group">
-            <label for="reorder-current-stock">Current Stock</label>
-            <input type="number" id="reorder-current-stock" readonly>
-        </div>
-        <div class="form-group">
-            <label for="reorder-quantity">Quantity to Order*</label>
-            <input type="number" id="reorder-quantity" min="1" value="10" required>
-        </div>
-        <div class="form-group">
-            <label for="reorder-notes">Notes</label>
-            <textarea id="reorder-notes" placeholder="Add any special instructions..."></textarea>
-        </div>
-        <p class="form-note">* Required fields</p>
-    </div>
-</template>
+<!-- No longer needed reorder template has been removed -->

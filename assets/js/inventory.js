@@ -21,8 +21,7 @@ function initializeInventory() {
     // Initialize reorder buttons
     initializeReorderButtons();
     
-    // Initialize delete book buttons
-    initializeDeleteBooks();
+    // Delete functionality removed
     
     // Initialize manual inventory update
     initializeManualInventory();
@@ -65,20 +64,6 @@ function initializeEditBooks() {
 }
 
 /**
- * Initialize reorder buttons
- */
-function initializeReorderButtons() {
-    const reorderButtons = document.querySelectorAll('.reorder-book-btn, .reorder-btn');
-    
-    reorderButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const bookId = this.getAttribute('data-id');
-            openReorderModal(bookId);
-        });
-    });
-}
-
-/**
  * Initialize delete book buttons
  */
 function initializeDeleteBooks() {
@@ -100,83 +85,17 @@ function initializeDeleteBooks() {
  * Initialize manual inventory update functionality
  */
 function initializeManualInventory() {
-    // Add quick edit functionality to stock quantities
-    const stockCells = document.querySelectorAll('.inventory-table tbody td:nth-child(5)');
+    // Add stock quantity display without edit controls
+    const stockCells = document.querySelectorAll('.inventory-table tbody td:nth-child(6)');
     stockCells.forEach(cell => {
-        const row = cell.closest('tr');
-        const bookId = row.getAttribute('data-id');
         const currentStock = parseInt(cell.textContent);
         
-        // Replace text with editable controls
+        // Replace text with simple stock display (no control buttons)
         cell.innerHTML = `
-            <div class="stock-edit">
+            <div class="stock-display">
                 <span class="stock-value">${currentStock}</span>
-                <div class="stock-controls">
-                    <button class="stock-btn decrease-stock" data-id="${bookId}" title="Decrease"><i class="fas fa-minus"></i></button>
-                    <button class="stock-btn increase-stock" data-id="${bookId}" title="Increase"><i class="fas fa-plus"></i></button>
-                    <button class="stock-btn edit-stock" data-id="${bookId}" title="Edit"><i class="fas fa-pencil-alt"></i></button>
-                </div>
             </div>
         `;
-    });
-    
-    // Add event listeners to stock buttons
-    document.querySelectorAll('.decrease-stock').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const bookId = this.getAttribute('data-id');
-            updateBookStock(bookId, -1);
-        });
-    });
-    
-    document.querySelectorAll('.increase-stock').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const bookId = this.getAttribute('data-id');
-            updateBookStock(bookId, 1);
-        });
-    });
-    
-    document.querySelectorAll('.edit-stock').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const bookId = this.getAttribute('data-id');
-            const stockEditElem = this.closest('.stock-edit');
-            const stockValueElem = stockEditElem.querySelector('.stock-value');
-            const currentStock = parseInt(stockValueElem.textContent);
-            
-            // Create inline edit input
-            const inputElem = document.createElement('input');
-            inputElem.type = 'number';
-            inputElem.min = '0';
-            inputElem.value = currentStock;
-            inputElem.className = 'stock-input';
-            
-            // Replace stock value with input
-            stockValueElem.innerHTML = '';
-            stockValueElem.appendChild(inputElem);
-            inputElem.focus();
-            
-            // Add event listeners for input
-            inputElem.addEventListener('blur', function() {
-                const newStock = parseInt(this.value);
-                if (!isNaN(newStock) && newStock >= 0) {
-                    setBookStock(bookId, newStock);
-                } else {
-                    // Restore original value if invalid
-                    stockValueElem.textContent = currentStock;
-                }
-            });
-            
-            inputElem.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    const newStock = parseInt(this.value);
-                    if (!isNaN(newStock) && newStock >= 0) {
-                        setBookStock(bookId, newStock);
-                    } else {
-                        // Restore original value if invalid
-                        stockValueElem.textContent = currentStock;
-                    }
-                }
-            });
-        });
     });
 }
 
@@ -325,35 +244,10 @@ function openEditBookModal(bookId) {
             document.getElementById('book-price').value = book.price;
             document.getElementById('book-stock').value = book.stock_qty;
             document.getElementById('book-threshold').value = book.low_stock_threshold;
-        })
-        .catch(error => {
-            console.error('Error fetching book details:', error);
-            showNotification('Error fetching book details. Please try again.', 'error');
-        });
-}
-
-/**
- * Open reorder modal
- * @param {string} bookId Book ID
- */
-function openReorderModal(bookId) {
-    showNotification('Fetching book details...', 'info');
-    
-    // Get book details from the API
-    fetch(`api/book/get.php?id=${bookId}`)
-        .then(response => response.json())
-        .then(book => {
-            const template = document.getElementById('reorder-template');
             
-            if (!template) return;
-            
-            openModal('Reorder Book', template.content.cloneNode(true).querySelector('.reorder-form').outerHTML, function() {
-                processReorder(bookId);
-            });
-            
-            // Populate form with book details
-            document.getElementById('reorder-book').value = `${book.title} by ${book.author}`;
-            document.getElementById('reorder-current-stock').value = book.stock_qty;
+            // Set college if it exists, otherwise set to empty value
+            const collegeSelect = document.getElementById('book-college');
+            collegeSelect.value = book.college || '';
         })
         .catch(error => {
             console.error('Error fetching book details:', error);
@@ -399,34 +293,34 @@ function openBulkUpdateModal() {
  * Add book
  */
 function addBook() {
-    const title = document.getElementById('book-title').value;
-    const author = document.getElementById('book-author').value;
-    const isbn = document.getElementById('book-isbn').value;
-    const price = document.getElementById('book-price').value;
-    const stock = document.getElementById('book-stock').value;
-    const threshold = document.getElementById('book-threshold').value;
-    
-    // Validate inputs
-    if (!title || !author || !price || !stock) {
-        showNotification('Please fill in all required fields.', 'warning');
+    // Validate form
+    const title = document.getElementById('book-title').value.trim();
+    const author = document.getElementById('book-author').value.trim();
+    const isbn = document.getElementById('book-isbn').value.trim();
+    const price = parseFloat(document.getElementById('book-price').value);
+    const stock = parseInt(document.getElementById('book-stock').value);
+    const threshold = parseInt(document.getElementById('book-threshold').value);
+    const college = document.getElementById('book-college').value.trim() || null; // Handle empty college value
+
+    // Validate required fields
+    if (!title || !author || isNaN(price) || isNaN(stock)) {
+        showNotification('Please fill in all required fields correctly', 'error');
         return;
     }
-    
-    // Prepare book data
+
+    // Create book data object
     const bookData = {
         title: title,
         author: author,
-        isbn: isbn,
-        price: parseFloat(price),
-        stock_qty: parseInt(stock),
-        low_stock_threshold: parseInt(threshold)
+        isbn: isbn || null, // Send null if empty
+        price: price,
+        stock_qty: stock,
+        low_stock_threshold: threshold || 5,
+        college: college
     };
-    
-    // Show loading notification
-    showNotification('Adding book...', 'info');
-    
-    // Send request to API
-    fetch('api/book/add.php', {
+
+    // Send data to API
+    fetch('api/book/create.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -435,23 +329,21 @@ function addBook() {
     })
     .then(response => response.json())
     .then(data => {
-        closeModal();
-        
-        if (data.book_id) {
-            showNotification('Book added successfully.', 'success');
+        if (data.success) {
+            showNotification('Book added successfully!', 'success');
+            closeModal();
             
-            // Reload page to show new book
+            // Refresh inventory table after a short delay
             setTimeout(() => {
                 window.location.reload();
             }, 1000);
         } else {
-            showNotification(data.message || 'Failed to add book.', 'error');
+            showNotification(data.message || 'Error adding book', 'error');
         }
     })
     .catch(error => {
-        console.error('Error adding book:', error);
-        closeModal();
-        showNotification('An error occurred while adding the book.', 'error');
+        console.error('Error:', error);
+        showNotification('An error occurred while adding the book', 'error');
     });
 }
 
@@ -460,34 +352,34 @@ function addBook() {
  * @param {string} bookId Book ID
  */
 function updateBook(bookId) {
-    const title = document.getElementById('book-title').value;
-    const author = document.getElementById('book-author').value;
-    const isbn = document.getElementById('book-isbn').value;
-    const price = document.getElementById('book-price').value;
-    const stock = document.getElementById('book-stock').value;
-    const threshold = document.getElementById('book-threshold').value;
-    
-    // Validate inputs
-    if (!title || !author || !price || !stock) {
-        showNotification('Please fill in all required fields.', 'warning');
+    // Validate form
+    const title = document.getElementById('book-title').value.trim();
+    const author = document.getElementById('book-author').value.trim();
+    const isbn = document.getElementById('book-isbn').value.trim();
+    const price = parseFloat(document.getElementById('book-price').value);
+    const stock = parseInt(document.getElementById('book-stock').value);
+    const threshold = parseInt(document.getElementById('book-threshold').value);
+    const college = document.getElementById('book-college').value.trim() || null; // Handle empty college value
+
+    // Validate required fields
+    if (!title || !author || isNaN(price) || isNaN(stock)) {
+        showNotification('Please fill in all required fields correctly', 'error');
         return;
     }
-    
-    // Prepare book data
+
+    // Create book data object
     const bookData = {
         book_id: bookId,
         title: title,
         author: author,
-        isbn: isbn,
-        price: parseFloat(price),
-        stock_qty: parseInt(stock),
-        low_stock_threshold: parseInt(threshold)
+        isbn: isbn || null, // Send null if empty
+        price: price,
+        stock_qty: stock,
+        low_stock_threshold: threshold || 5,
+        college: college
     };
-    
-    // Show loading notification
-    showNotification('Updating book...', 'info');
-    
-    // Send request to API
+
+    // Send data to API
     fetch('api/book/update.php', {
         method: 'POST',
         headers: {
@@ -497,23 +389,21 @@ function updateBook(bookId) {
     })
     .then(response => response.json())
     .then(data => {
-        closeModal();
-        
-        if (data.message && data.message.includes('successfully')) {
-            showNotification('Book updated successfully.', 'success');
+        if (data.success) {
+            showNotification('Book updated successfully!', 'success');
+            closeModal();
             
-            // Reload page to show updated book
+            // Refresh inventory table after a short delay
             setTimeout(() => {
                 window.location.reload();
             }, 1000);
         } else {
-            showNotification(data.message || 'Failed to update book.', 'error');
+            showNotification(data.message || 'Error updating book', 'error');
         }
     })
     .catch(error => {
-        console.error('Error updating book:', error);
-        closeModal();
-        showNotification('An error occurred while updating the book.', 'error');
+        console.error('Error:', error);
+        showNotification('An error occurred while updating the book', 'error');
     });
 }
 
@@ -525,18 +415,24 @@ function deleteBook(bookId) {
     // Show loading notification
     showNotification('Deleting book...', 'info');
     
-    // Send request to API
+    // First try with DELETE method
     fetch(`api/book/delete.php?id=${bookId}`, {
         method: 'DELETE'
     })
     .then(response => {
-        // Check if response is ok
-        if (response.ok) {
-            return response.json();
-        } else {
-            throw new Error('Failed to delete book');
+        if (!response.ok && response.status !== 0) {
+            // If DELETE fails with an actual error (not CORS), try POST as fallback
+            return fetch(`api/book/delete.php?id=${bookId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `id=${bookId}`
+            });
         }
+        return response;
     })
+    .then(response => response.json())
     .then(data => {
         if (data.message && data.message.includes('successfully')) {
             showNotification('Book deleted successfully.', 'success');
@@ -555,91 +451,26 @@ function deleteBook(bookId) {
     })
     .catch(error => {
         console.error('Error deleting book:', error);
-        showNotification('An error occurred while deleting the book.', 'error');
+        showNotification('An error occurred while deleting the book. Please try again.', 'error');
     });
 }
 
 /**
- * Process reorder
- * @param {string} bookId Book ID
- */
-function processReorder(bookId) {
-    const quantity = document.getElementById('reorder-quantity').value;
-    const notes = document.getElementById('reorder-notes').value;
-    
-    // Validate inputs
-    if (!quantity || parseInt(quantity) <= 0) {
-        showNotification('Please enter a valid quantity.', 'warning');
-        return;
-    }
-    
-    // Show loading notification
-    showNotification('Processing reorder...', 'info');
-    
-    // In a real application, this would make an API call to create a purchase order
-    // For this demo, we'll update the stock directly
-    fetch(`api/book/get.php?id=${bookId}`)
-        .then(response => response.json())
-        .then(book => {
-            // Update the book stock
-            const newStock = book.stock_qty + parseInt(quantity);
-            return fetch('api/book/update.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    book_id: bookId,
-                    stock_qty: newStock
-                })
-            });
-        })
-        .then(response => response.json())
-        .then(data => {
-            closeModal();
-            
-            if (data.message && data.message.includes('successfully')) {
-                showNotification('Reorder processed successfully. Stock has been updated.', 'success');
-                
-                // Reload page to show updated stock
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showNotification(data.message || 'Failed to process reorder.', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error processing reorder:', error);
-            closeModal();
-            showNotification('An error occurred while processing the reorder.', 'error');
-        });
-}
-
-/**
- * Process bulk update
+ * Process bulk update of book stock
  */
 function processBulkUpdate() {
+    // Get form values
     const action = document.getElementById('bulk-action').value;
     const value = parseInt(document.getElementById('bulk-value').value);
     const criteria = document.getElementById('bulk-criteria').value;
     
-    // Validate inputs
-    if (isNaN(value) || value < 0) {
-        showNotification('Please enter a valid value.', 'warning');
+    // Validate input
+    if (isNaN(value) || value <= 0) {
+        showNotification('Please enter a valid quantity.', 'error');
         return;
     }
     
-    // Confirm bulk update
-    const confirmMessage = `Are you sure you want to ${action} stock by ${value} for ${criteria === 'all' ? 'all books' : criteria === 'low_stock' ? 'low stock books' : 'out of stock books'}?`;
-    if (!confirm(confirmMessage)) {
-        return;
-    }
-    
-    // Show loading notification
-    showNotification('Processing bulk update...', 'info');
-    
-    // Get all book rows based on criteria
+    // Get books based on criteria
     let bookRows;
     if (criteria === 'all') {
         bookRows = document.querySelectorAll('.inventory-table tbody tr');
@@ -700,6 +531,8 @@ function processBulkUpdate() {
 
 /**
  * Update book stock by increment/decrement
+ * This function is no longer actively used as stock editing buttons have been removed
+ * Kept for API compatibility
  * @param {string} bookId Book ID
  * @param {number} change Stock change amount (positive or negative)
  */
@@ -755,6 +588,8 @@ function updateBookStock(bookId, change) {
 
 /**
  * Set book stock to specific value
+ * This function is no longer actively used as stock editing buttons have been removed
+ * Kept for API compatibility
  * @param {string} bookId Book ID
  * @param {number} newStock New stock value
  */
@@ -860,4 +695,11 @@ function updateInventoryUI() {
     if (inStockElem) inStockElem.textContent = inStockCount;
     if (lowStockElem) lowStockElem.textContent = lowStockCount;
     if (outOfStockElem) outOfStockElem.textContent = outOfStockCount;
+}
+
+/**
+ * Initialize reorder buttons
+ */
+function initializeReorderButtons() {
+    // Reorder functionality has been removed
 }

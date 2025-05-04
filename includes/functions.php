@@ -8,10 +8,10 @@
  * Format money amount
  * 
  * @param float $amount Amount to format
- * @return string Formatted amount with $ symbol
+ * @return string Formatted amount with ₱ symbol
  */
 function formatMoney($amount) {
-    return '$' . number_format($amount, 2);
+    return '₱' . number_format($amount, 2);
 }
 
 /**

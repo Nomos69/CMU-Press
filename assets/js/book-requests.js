@@ -165,13 +165,19 @@ function openEditRequestModal(requestId) {
     
     const quantity = row.cells[5].textContent;
     
-    // Get status from the class name of the status badge
+    // Get status based on text content, not class
     const statusBadge = row.cells[6].querySelector('.status');
-    const status = statusBadge ? 
-        statusBadge.classList.contains('completed') ? 'fulfilled' :
-        statusBadge.classList.contains('on_hold') || statusBadge.classList.contains('on-hold') ? 'ordered' :
-        statusBadge.classList.contains('cancelled') ? 'cancelled' : 'pending'
-        : 'pending';
+    const statusText = statusBadge ? statusBadge.textContent.trim().toLowerCase() : 'pending';
+    let status;
+    
+    // Map the status text to the correct status value
+    switch (statusText) {
+        case 'fulfilled':
+            status = 'fulfilled';
+            break;
+        default:
+            status = 'pending';
+    }
     
     const template = document.getElementById('request-template');
     
@@ -290,17 +296,34 @@ function updateRequest(requestId) {
     // Show loading notification
     showNotification('Updating book request...', 'info');
     
-    // In a real application, this would make an API call to update the request
-    // For this demo, we'll simulate an API response
-    setTimeout(() => {
+    // Send request to API
+    fetch('api/book_request/update.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
         closeModal();
-        showNotification('Book request updated successfully', 'success');
         
-        // Reload page to reflect changes
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
-    }, 500);
+        if (data.message && data.message.includes('successfully')) {
+            showNotification(data.message, 'success');
+            
+            // Reload page to reflect changes
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to update book request.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating book request:', error);
+        closeModal();
+        showNotification('An error occurred while updating the book request.', 'error');
+    });
 }
 
 /**
@@ -308,20 +331,41 @@ function updateRequest(requestId) {
  * @param {string} requestId Request ID
  */
 function fulfillRequest(requestId) {
-    if (confirm('Are you sure you want to mark this request as fulfilled?')) {
+    if (confirm('Are you sure you want to fulfill this request? This will add the book to inventory with the requested quantity as stock.')) {
         // Show loading notification
         showNotification('Processing request...', 'info');
         
-        // In a real application, this would make an API call to fulfill the request
-        // For this demo, we'll simulate an API response
-        setTimeout(() => {
-            showNotification('Request marked as fulfilled', 'success');
-            
-            // Reload page to reflect changes
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }, 500);
+        // Prepare request data
+        const requestData = {
+            request_id: requestId,
+            status: 'fulfilled'
+        };
+        
+        // Send request to API
+        fetch('api/book_request/update_status.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message && data.message.includes('successfully')) {
+                showNotification(data.message, 'success');
+                
+                // Reload page to reflect changes
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.message || 'Failed to fulfill book request.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error fulfilling book request:', error);
+            showNotification('An error occurred while fulfilling the book request.', 'error');
+        });
     }
 }
 
@@ -330,20 +374,41 @@ function fulfillRequest(requestId) {
  * @param {string} requestId Request ID
  */
 function cancelRequest(requestId) {
-    if (confirm('Are you sure you want to cancel this request?')) {
+    if (confirm('Are you sure you want to fulfill this request?')) {
         // Show loading notification
-        showNotification('Processing request...', 'info');
+        showNotification('Fulfilling request...', 'info');
         
-        // In a real application, this would make an API call to cancel the request
-        // For this demo, we'll simulate an API response
-        setTimeout(() => {
-            showNotification('Request cancelled', 'success');
-            
-            // Reload page to reflect changes
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }, 500);
+        // Prepare request data
+        const requestData = {
+            request_id: requestId,
+            status: 'fulfilled'
+        };
+        
+        // Send request to API
+        fetch('api/book_request/update_status.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message && data.message.includes('successfully')) {
+                showNotification('Request fulfilled successfully', 'success');
+                
+                // Reload page to reflect changes
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.message || 'Failed to fulfill book request.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error fulfilling book request:', error);
+            showNotification('An error occurred while fulfilling the book request.', 'error');
+        });
     }
 }
 
@@ -453,25 +518,30 @@ bookRequestStyles.textContent = `
     
     .actions {
         white-space: nowrap;
+        text-align: center;
     }
     
     .actions button {
         background: none;
         border: none;
-        color: var(--primary-color);
         cursor: pointer;
-        margin-right: 0.5rem;
+        margin: 0 5px;
+        font-size: 1.1rem;
+        padding: 5px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
     }
     
     .actions button:hover {
-        color: var(--primary-dark);
+        background-color: rgba(0, 0, 0, 0.05);
     }
     
+    .actions button.edit-request-btn {
+        color: var(--primary-color);
+    }
+    
+    .actions button.fulfill-request-btn,
     .actions button.cancel-request-btn {
-        color: var(--error-color);
-    }
-    
-    .actions button.fulfill-request-btn {
         color: var(--success-color);
     }
     
@@ -481,51 +551,47 @@ bookRequestStyles.textContent = `
         color: var(--light-text);
     }
     
-    .stat-section {
-        margin-bottom: 2rem;
-    }
-    
-    .stat-section h3 {
-        font-size: 1rem;
-        margin-bottom: 1rem;
-        color: var(--text-color);
-    }
-    
-    .stat-bars {
-        display: flex;
-        flex-direction: column;
-        gap: 0.8rem;
-    }
-    
-    .stat-bar {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .stat-label {
-        width: 80px;
-        font-size: 0.9rem;
-    }
-    
-    .bar-container {
-        flex: 1;
-        height: 0.8rem;
-        background-color: #f5f5f5;
+    /* Status styles */
+    .status {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
         border-radius: 4px;
-        overflow: hidden;
-    }
-    
-    .bar {
-        height: 100%;
-        border-radius: 4px;
-    }
-    
-    .stat-value {
-        width: 30px;
-        text-align: right;
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         font-weight: 500;
+    }
+    
+    .status.pending {
+        background-color: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .status.fulfilled {
+        background-color: #e8f5e9;
+        color: #388e3c;
+    }
+    
+    /* Priority styles */
+    .priority {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .priority.high-priority {
+        background-color: #ffebee;
+        color: #d32f2f;
+    }
+    
+    .priority.medium-priority {
+        background-color: #fff8e1;
+        color: #ff8f00;
+    }
+    
+    .priority.low-priority {
+        background-color: #e8f5e9;
+        color: #388e3c;
     }
     
     .priority-stats {
@@ -623,6 +689,53 @@ bookRequestStyles.textContent = `
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
+    }
+    
+    .stat-section {
+        margin-bottom: 2rem;
+    }
+    
+    .stat-section h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: var(--text-color);
+    }
+    
+    .stat-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+    
+    .stat-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .stat-label {
+        width: 80px;
+        font-size: 0.9rem;
+    }
+    
+    .bar-container {
+        flex: 1;
+        height: 0.8rem;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .bar {
+        height: 100%;
+        border-radius: 4px;
+    }
+    
+    .stat-value {
+        width: 30px;
+        text-align: right;
+        font-size: 0.9rem;
+        font-weight: 500;
     }
 `;
 
