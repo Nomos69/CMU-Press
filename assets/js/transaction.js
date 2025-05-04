@@ -98,7 +98,17 @@ function initializeTransactionButtons() {
  * Initialize payment methods
  */
 function initializePaymentMethods() {
-    // No longer needed as only cash payment is available
+    const paymentButtons = document.querySelectorAll('.payment-btn');
+    
+    paymentButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            paymentButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            this.classList.add('active');
+        });
+    });
 }
 
 /**
@@ -355,8 +365,14 @@ function processCheckout() {
         return;
     }
     
-    // Payment method is always cash
-    const paymentMethod = 'cash';
+    // Get payment method
+    const activePayment = document.querySelector('.payment-btn.active');
+    if (!activePayment) {
+        showNotification('Please select a payment method', 'warning');
+        return;
+    }
+    
+    const paymentMethod = activePayment.getAttribute('data-method');
     
     // Build transaction data
     const items = [];
@@ -584,7 +600,7 @@ function showReceipt(transactionId) {
                     </div>
                 </div>
                 <div class="receipt-footer">
-                    <p>Payment Method: Cash</p>
+                    <p>Payment Method: Credit Card</p>
                     <p>Thank you for your purchase!</p>
                     <p>Please come again</p>
                 </div>
@@ -725,6 +741,6 @@ function printReceipt(receiptHTML) {
  * @param {number} amount - Amount
  * @returns {string} Formatted currency string
  */
-function formatCurrency(amount) {
+function formatCurrency(amount) {``
     return '$' + amount.toFixed(2);
 }

@@ -1,88 +1,173 @@
 <?php
+// Enable error reporting 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // Require authentication
-requireLogin();
+if (function_exists('requireLogin')) {
+    requireLogin();
+} else {
+    // Fallback check if function doesn't exist
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: login.php');
+        exit;
+    }
+}
+
+// Check if database connection exists
+if (!isset($db) || !$db) {
+    // Try to create the database connection
+    if (class_exists('Database')) {
+        $database = new Database();
+        $db = $database->getConnection();
+    }
+    
+    // If still no database connection, show error
+    if (!$db) {
+        echo "Database connection error. Please check your database settings.";
+        exit;
+    }
+}
+
+// Make sure required models are loaded
+if (!class_exists('Book')) {
+    require_once 'models/Book.php';
+}
+if (!class_exists('Transaction')) {
+    require_once 'models/Transaction.php';
+}
+if (!class_exists('TransactionItem')) {
+    require_once 'models/TransactionItem.php';
+}
+if (!class_exists('BookRequest')) {
+    require_once 'models/BookRequest.php';
+}
 
 // Get the next transaction ID
-$query = "SELECT MAX(transaction_id) as max_id FROM transactions";
-$stmt = $db->prepare($query);
-$stmt->execute();
-$row = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $query = "SELECT MAX(transaction_id) as max_id FROM transactions";
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$next_transaction_id = isset($row['max_id']) ? $row['max_id'] + 1 : 5789;
+    $next_transaction_id = isset($row['max_id']) ? $row['max_id'] + 1 : 5789;
+} catch (PDOException $e) {
+    echo "Database query error: " . $e->getMessage();
+    $next_transaction_id = 5789; // Default if there's an error
+}
 
 // Initialize Transaction model for statistics
 $transaction = new Transaction($db);
 
 // Get inventory statistics
-$books = new Book($db);
-$inventory_query = "SELECT 
-    SUM(CASE WHEN stock_qty > low_stock_threshold THEN 1 ELSE 0 END) as in_stock,
-    SUM(CASE WHEN stock_qty <= low_stock_threshold AND stock_qty > 0 THEN 1 ELSE 0 END) as low_stock,
-    SUM(CASE WHEN stock_qty = 0 THEN 1 ELSE 0 END) as out_of_stock
-    FROM books";
-$stmt = $db->prepare($inventory_query);
-$stmt->execute();
-$inventory_stats = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $books = new Book($db);
+    $inventory_query = "SELECT 
+        SUM(CASE WHEN stock_qty > low_stock_threshold THEN 1 ELSE 0 END) as in_stock,
+        SUM(CASE WHEN stock_qty <= low_stock_threshold AND stock_qty > 0 THEN 1 ELSE 0 END) as low_stock,
+        SUM(CASE WHEN stock_qty = 0 THEN 1 ELSE 0 END) as out_of_stock
+        FROM books";
+    $stmt = $db->prepare($inventory_query);
+    $stmt->execute();
+    $inventory_stats = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Handle null values
+    $inventory_stats['in_stock'] = $inventory_stats['in_stock'] ?? 0;
+    $inventory_stats['low_stock'] = $inventory_stats['low_stock'] ?? 0;
+    $inventory_stats['out_of_stock'] = $inventory_stats['out_of_stock'] ?? 0;
+} catch (PDOException $e) {
+    echo "Inventory query error: " . $e->getMessage();
+    $inventory_stats = [
+        'in_stock' => 0,
+        'low_stock' => 0,
+        'out_of_stock' => 0
+    ];
+}
 
 // Get low stock items
-$low_stock_query = "SELECT * FROM books 
-                    WHERE stock_qty <= low_stock_threshold AND stock_qty > 0 
-                    ORDER BY stock_qty ASC LIMIT 3";
-$stmt = $db->prepare($low_stock_query);
-$stmt->execute();
-$low_stock_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $low_stock_query = "SELECT * FROM books 
+                        WHERE stock_qty <= low_stock_threshold AND stock_qty > 0 
+                        ORDER BY stock_qty ASC LIMIT 3";
+    $stmt = $db->prepare($low_stock_query);
+    $stmt->execute();
+    $low_stock_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $low_stock_items = [];
+}
 
 // Get pending book requests
-$book_requests = new BookRequest($db);
-$requests_query = "SELECT * FROM book_requests 
-                  WHERE status = 'pending' 
-                  ORDER BY 
-                    CASE priority 
-                        WHEN 'high' THEN 1 
-                        WHEN 'medium' THEN 2 
-                        WHEN 'low' THEN 3 
-                    END, 
-                    request_date DESC 
-                  LIMIT 2";
-$stmt = $db->prepare($requests_query);
-$stmt->execute();
-$book_requests_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $book_requests = new BookRequest($db);
+    $requests_query = "SELECT * FROM book_requests 
+                      WHERE status = 'pending' 
+                      ORDER BY 
+                        CASE priority 
+                            WHEN 'high' THEN 1 
+                            WHEN 'medium' THEN 2 
+                            WHEN 'low' THEN 3 
+                        END, 
+                        request_date DESC 
+                      LIMIT 2";
+    $stmt = $db->prepare($requests_query);
+    $stmt->execute();
+    $book_requests_list = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Count pending requests
-$pending_count = $book_requests->countPending();
+    // Count pending requests
+    $pending_count = $book_requests->countPending();
+    
+    // Get high priority book requests
+    $high_priority_count = $book_requests->countHighPriority();
+} catch (PDOException $e) {
+    $book_requests_list = [];
+    $pending_count = 0;
+    $high_priority_count = 0;
+}
 
 // Get today's stats
-$daily_stats = $transaction->getDayStats();
-$total_sales = $daily_stats['total_sales'] ? $daily_stats['total_sales'] : 0;
-$transaction_count = $daily_stats['transaction_count'] ? $daily_stats['transaction_count'] : 0;
+try {
+    $daily_stats = $transaction->getDayStats();
+    $total_sales = $daily_stats['total_sales'] ? $daily_stats['total_sales'] : 0;
+    $transaction_count = $daily_stats['transaction_count'] ? $daily_stats['transaction_count'] : 0;
 
-// Get books sold today
-$transaction_item = new TransactionItem($db);
-$books_sold = $transaction_item->getTotalBooksSold();
+    // Get books sold today
+    $transaction_item = new TransactionItem($db);
+    $books_sold = $transaction_item->getTotalBooksSold();
+} catch (PDOException $e) {
+    $total_sales = 0;
+    $transaction_count = 0;
+    $books_sold = 0;
+}
 
 // Get new customers today
-$new_customers_query = "SELECT COUNT(*) as count FROM customers WHERE DATE(created_at) = CURDATE()";
-$stmt = $db->prepare($new_customers_query);
-$stmt->execute();
-$new_customers_row = $stmt->fetch(PDO::FETCH_ASSOC);
-$new_customers = $new_customers_row['count'];
+try {
+    $new_customers_query = "SELECT COUNT(*) as count FROM customers WHERE DATE(created_at) = CURDATE()";
+    $stmt = $db->prepare($new_customers_query);
+    $stmt->execute();
+    $new_customers_row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $new_customers = $new_customers_row['count'];
 
-// Get new customers with loyalty cards
-$loyalty_query = "SELECT COUNT(*) as count FROM customers 
-                 WHERE DATE(created_at) = CURDATE() AND has_loyalty_card = 1";
-$stmt = $db->prepare($loyalty_query);
-$stmt->execute();
-$loyalty_row = $stmt->fetch(PDO::FETCH_ASSOC);
-$loyalty_customers = $loyalty_row['count'];
-
-// Get high priority book requests
-$high_priority_count = $book_requests->countHighPriority();
+    // Get new customers with loyalty cards
+    $loyalty_query = "SELECT COUNT(*) as count FROM customers 
+                     WHERE DATE(created_at) = CURDATE() AND has_loyalty_card = 1";
+    $stmt = $db->prepare($loyalty_query);
+    $stmt->execute();
+    $loyalty_row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $loyalty_customers = $loyalty_row['count'];
+} catch (PDOException $e) {
+    $new_customers = 0;
+    $loyalty_customers = 0;
+}
 
 // Get recent transactions
-$recent_transactions = $transaction->getRecent(3);
-$recent_transactions_list = [];
-while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
-    $recent_transactions_list[] = $row;
+try {
+    $recent_transactions = $transaction->getRecent(3);
+    $recent_transactions_list = [];
+    while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
+        $recent_transactions_list[] = $row;
+    }
+} catch (PDOException $e) {
+    $recent_transactions_list = [];
 }
 ?>
 
@@ -141,9 +226,27 @@ while ($row = $recent_transactions->fetch(PDO::FETCH_ASSOC)) {
             <!-- Payment Section -->
             <div class="card">
                 <div class="card-header">
-                    <h2>Cash Payment</h2>
+                    <h2>Payment</h2>
                 </div>
                 <div class="card-body">
+                    <div class="payment-options">
+                        <button class="payment-btn active" data-method="credit_card">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Credit Card</span>
+                        </button>
+                        <button class="payment-btn" data-method="cash">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>Cash</span>
+                        </button>
+                        <button class="payment-btn" data-method="paypal">
+                            <i class="fab fa-paypal"></i>
+                            <span>PayPal</span>
+                        </button>
+                        <button class="payment-btn" data-method="other">
+                            <i class="fas fa-ellipsis-h"></i>
+                            <span>Other</span>
+                        </button>
+                    </div>
                     <div class="action-buttons">
                         <button id="checkout-btn" class="btn-primary">Checkout ($0.00)</button>
                     </div>

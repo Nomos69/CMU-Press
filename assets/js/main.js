@@ -5,62 +5,80 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize global elements and functionality
-    initializeNotifications();
-    initializeModals();
+    initializeGlobalFunctions();
     initializeSearch();
 });
+
+/**
+ * Initialize global functions
+ */
+function initializeGlobalFunctions() {
+    // Initialize modal functionality
+    initializeModals();
+    
+    // Initialize notifications
+    initializeNotifications();
+}
 
 /**
  * Initialize notification system
  */
 function initializeNotifications() {
-    // Add notification styles if not already added
-    if (!document.getElementById('notification-styles')) {
-        const notificationStyles = document.createElement('style');
-        notificationStyles.id = 'notification-styles';
-        notificationStyles.textContent = `
-            .notification {
+    // Create notifications container if it doesn't exist
+    if (!document.getElementById('notifications-container')) {
+        const container = document.createElement('div');
+        container.id = 'notifications-container';
+        document.body.appendChild(container);
+        
+        // Add style for notifications container
+        const style = document.createElement('style');
+        style.textContent = `
+            #notifications-container {
                 position: fixed;
-                bottom: 20px;
+                top: 100px;
                 right: 20px;
-                padding: 12px 20px;
-                border-radius: 4px;
-                background-color: white;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                z-index: 1000;
-                animation: slideIn 0.3s ease-out;
-                max-width: 400px;
+                z-index: 9999;
+                width: 300px;
+            }
+            
+            .notification {
+                padding: 12px 15px;
                 margin-bottom: 10px;
+                border-radius: 4px;
+                color: white;
+                font-size: 14px;
+                font-weight: 500;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                animation: slideIn 0.3s ease-out forwards;
             }
             
-            .notification.info {
-                border-left: 4px solid #2196f3;
+            .notification.closing {
+                animation: slideOut 0.3s ease-in forwards;
             }
             
-            .notification.success {
-                border-left: 4px solid #4caf50;
+            .notification-success {
+                background-color: #4caf50;
             }
             
-            .notification.warning {
-                border-left: 4px solid #ff9800;
+            .notification-error {
+                background-color: #f44336;
             }
             
-            .notification.error {
-                border-left: 4px solid #f44336;
+            .notification-warning {
+                background-color: #ff9800;
             }
             
-            .notification-message {
-                margin-right: 20px;
+            .notification-info {
+                background-color: #2196f3;
             }
             
             .notification-close {
-                background: none;
-                border: none;
                 cursor: pointer;
-                color: #666;
+                font-size: 16px;
+                margin-left: 10px;
             }
             
             @keyframes slideIn {
@@ -73,40 +91,80 @@ function initializeNotifications() {
                     opacity: 1;
                 }
             }
+            
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
         `;
-        document.head.appendChild(notificationStyles);
+        document.head.appendChild(style);
     }
 }
 
 /**
- * Show a notification message
- * @param {string} message - The message to display
- * @param {string} type - The type of notification (info, success, warning, error)
+ * Show notification
+ * @param {string} message Notification message
+ * @param {string} type Notification type (success, error, warning, info)
+ * @param {number} duration Duration in ms (0 for no auto-close)
  */
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('notifications-container');
+    
+    if (!container) {
+        console.error('Notifications container not found');
+        return;
+    }
+    
     // Create notification element
     const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <span class="notification-message">${message}</span>
-        <button class="notification-close"><i class="fas fa-times"></i></button>
-    `;
+    notification.className = `notification notification-${type}`;
     
-    // Add notification to the page
-    document.body.appendChild(notification);
+    // Create message element
+    const messageEl = document.createElement('span');
+    messageEl.textContent = message;
     
-    // Add event listener to close button
-    const closeBtn = notification.querySelector('.notification-close');
-    closeBtn.addEventListener('click', function() {
-        notification.remove();
-    });
+    // Create close button
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'notification-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.addEventListener('click', () => closeNotification(notification));
     
-    // Automatically remove notification after 5 seconds
+    // Add elements to notification
+    notification.appendChild(messageEl);
+    notification.appendChild(closeBtn);
+    
+    // Add notification to container
+    container.appendChild(notification);
+    
+    // Auto-close after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            closeNotification(notification);
+        }, duration);
+    }
+    
+    // Return notification element for reference
+    return notification;
+}
+
+/**
+ * Close notification
+ * @param {HTMLElement} notification Notification element
+ */
+function closeNotification(notification) {
+    notification.classList.add('closing');
+    
     setTimeout(() => {
-        if (document.body.contains(notification)) {
-            notification.remove();
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
         }
-    }, 5000);
+    }, 300); // Match animation duration
 }
 
 /**
@@ -114,27 +172,23 @@ function showNotification(message, type = 'info') {
  */
 function initializeModals() {
     const modalOverlay = document.getElementById('modal-overlay');
-    if (!modalOverlay) return;
-    
     const modalClose = document.getElementById('modal-close');
     const modalCancel = document.getElementById('modal-cancel');
     
-    // Close modal when close button is clicked
-    modalClose.addEventListener('click', function() {
-        closeModal();
-    });
+    if (!modalOverlay || !modalClose || !modalCancel) return;
     
-    // Close modal when cancel button is clicked
-    modalCancel.addEventListener('click', function() {
-        closeModal();
-    });
-    
-    // Close modal when clicking outside the modal
+    // Close modal on click outside
     modalOverlay.addEventListener('click', function(e) {
         if (e.target === modalOverlay) {
             closeModal();
         }
     });
+    
+    // Close modal on close button click
+    modalClose.addEventListener('click', closeModal);
+    
+    // Close modal on cancel button click
+    modalCancel.addEventListener('click', closeModal);
     
     // Initialize book request button if it exists
     const requestBookBtn = document.querySelector('.request-book-btn');
@@ -146,22 +200,39 @@ function initializeModals() {
 }
 
 /**
- * Open modal
- * @param {string} title - The modal title
- * @param {string} content - The modal content (HTML)
- * @param {function} confirmCallback - Callback function for confirm button
+ * Open modal with content
+ * @param {string} title Modal title
+ * @param {HTMLElement} content Modal content
+ * @param {Function} confirmCallback Callback for confirm button
+ * @param {boolean} showFooter Show modal footer
  */
-function openModal(title, content, confirmCallback = null) {
+function openModal(title, content, confirmCallback = null, showFooter = true) {
     const modalOverlay = document.getElementById('modal-overlay');
     const modalTitle = document.getElementById('modal-title');
     const modalContent = document.getElementById('modal-content');
+    const modalFooter = document.getElementById('modal-footer');
     const modalConfirm = document.getElementById('modal-confirm');
     
-    // Set modal title and content
-    modalTitle.textContent = title;
-    modalContent.innerHTML = content;
+    if (!modalOverlay || !modalTitle || !modalContent || !modalFooter || !modalConfirm) {
+        console.error('Modal elements not found');
+        return;
+    }
     
-    // Set confirm button callback if provided
+    // Set modal title
+    modalTitle.textContent = title;
+    
+    // Clear and set modal content
+    modalContent.innerHTML = '';
+    if (typeof content === 'string') {
+        modalContent.innerHTML = content;
+    } else {
+        modalContent.appendChild(content);
+    }
+    
+    // Show/hide footer
+    modalFooter.style.display = showFooter ? 'flex' : 'none';
+    
+    // Set confirm callback
     if (confirmCallback) {
         modalConfirm.onclick = confirmCallback;
     } else {
@@ -170,6 +241,9 @@ function openModal(title, content, confirmCallback = null) {
     
     // Show modal
     modalOverlay.classList.remove('hidden');
+    
+    // Add body class to prevent scrolling
+    document.body.classList.add('modal-open');
 }
 
 /**
@@ -177,7 +251,14 @@ function openModal(title, content, confirmCallback = null) {
  */
 function closeModal() {
     const modalOverlay = document.getElementById('modal-overlay');
+    
+    if (!modalOverlay) return;
+    
+    // Hide modal
     modalOverlay.classList.add('hidden');
+    
+    // Remove body class to allow scrolling
+    document.body.classList.remove('modal-open');
 }
 
 /**

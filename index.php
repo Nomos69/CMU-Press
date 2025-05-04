@@ -50,6 +50,9 @@ include_once 'includes/header.php';
 $database = new Database();
 $db = $database->getConnection();
 
+// Start main content wrapper
+echo '<main>';
+
 // Include appropriate tab content
 switch ($activeTab) {
     case 'pos':
@@ -98,6 +101,9 @@ switch ($activeTab) {
         include_once 'pages/pos.php';
         break;
 }
+
+// End main content wrapper
+echo '</main>';
 
 // Include footer
 include_once 'includes/footer.php';
