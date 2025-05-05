@@ -9,7 +9,6 @@ class Customer {
     public $name;
     public $email;
     public $phone;
-    public $has_loyalty_card;
     public $created_at;
     public $updated_at;
     
@@ -21,7 +20,7 @@ class Customer {
     // Create customer
     public function create() {
         $query = "INSERT INTO " . $this->table_name . "
-                SET name=:name, email=:email, phone=:phone, has_loyalty_card=:has_loyalty_card";
+                SET name=:name, email=:email, phone=:phone";
         
         $stmt = $this->conn->prepare($query);
         
@@ -29,13 +28,11 @@ class Customer {
         $this->name = htmlspecialchars(strip_tags($this->name));
         $this->email = htmlspecialchars(strip_tags($this->email));
         $this->phone = htmlspecialchars(strip_tags($this->phone));
-        $this->has_loyalty_card = htmlspecialchars(strip_tags($this->has_loyalty_card));
         
         // Bind values
         $stmt->bindParam(":name", $this->name);
         $stmt->bindParam(":email", $this->email);
         $stmt->bindParam(":phone", $this->phone);
-        $stmt->bindParam(":has_loyalty_card", $this->has_loyalty_card);
         
         // Execute query
         if ($stmt->execute()) {
@@ -70,7 +67,6 @@ class Customer {
             $this->name = $row['name'];
             $this->email = $row['email'];
             $this->phone = $row['phone'];
-            $this->has_loyalty_card = $row['has_loyalty_card'];
             $this->created_at = $row['created_at'];
             $this->updated_at = $row['updated_at'];
             
@@ -83,7 +79,7 @@ class Customer {
     // Update customer
     public function update() {
         $query = "UPDATE " . $this->table_name . "
-                SET name=:name, email=:email, phone=:phone, has_loyalty_card=:has_loyalty_card
+                SET name=:name, email=:email, phone=:phone
                 WHERE customer_id=:customer_id";
         
         $stmt = $this->conn->prepare($query);
@@ -93,14 +89,12 @@ class Customer {
         $this->name = htmlspecialchars(strip_tags($this->name));
         $this->email = htmlspecialchars(strip_tags($this->email));
         $this->phone = htmlspecialchars(strip_tags($this->phone));
-        $this->has_loyalty_card = htmlspecialchars(strip_tags($this->has_loyalty_card));
         
         // Bind values
         $stmt->bindParam(':customer_id', $this->customer_id);
         $stmt->bindParam(':name', $this->name);
         $stmt->bindParam(':email', $this->email);
         $stmt->bindParam(':phone', $this->phone);
-        $stmt->bindParam(':has_loyalty_card', $this->has_loyalty_card);
         
         // Execute query
         if ($stmt->execute()) {
@@ -175,16 +169,10 @@ class Customer {
         return $row['count'];
     }
     
-    // Count new customers with loyalty cards today
+    // This method has been modified to count all new customers today
+    // since the loyalty card field has been removed
     public function countNewLoyaltyToday() {
-        $query = "SELECT COUNT(*) as count FROM " . $this->table_name . " 
-                  WHERE DATE(created_at) = CURDATE() AND has_loyalty_card = 1";
-        
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row['count'];
+        return $this->countNewToday();
     }
     
     // Get customer by email
@@ -201,7 +189,6 @@ class Customer {
             $this->customer_id = $row['customer_id'];
             $this->name = $row['name'];
             $this->phone = $row['phone'];
-            $this->has_loyalty_card = $row['has_loyalty_card'];
             $this->created_at = $row['created_at'];
             $this->updated_at = $row['updated_at'];
             
@@ -225,7 +212,6 @@ class Customer {
             $this->customer_id = $row['customer_id'];
             $this->name = $row['name'];
             $this->email = $row['email'];
-            $this->has_loyalty_card = $row['has_loyalty_card'];
             $this->created_at = $row['created_at'];
             $this->updated_at = $row['updated_at'];
             
@@ -235,11 +221,9 @@ class Customer {
         return false;
     }
     
-    // Get customers with loyalty cards
+    // Get all customers (since loyalty card field was removed)
     public function getLoyaltyCustomers() {
-        $query = "SELECT * FROM " . $this->table_name . " 
-                  WHERE has_loyalty_card = 1 
-                  ORDER BY name ASC";
+        $query = "SELECT * FROM " . $this->table_name . " ORDER BY name ASC";
         
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
@@ -247,16 +231,9 @@ class Customer {
         return $stmt;
     }
     
-    // Count loyalty customers
+    // Count all customers (since loyalty card field was removed)
     public function countLoyaltyCustomers() {
-        $query = "SELECT COUNT(*) as count FROM " . $this->table_name . " 
-                  WHERE has_loyalty_card = 1";
-        
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row['count'];
+        return $this->count();
     }
 }
 ?>

@@ -147,13 +147,8 @@ try {
     $new_customers_row = $stmt->fetch(PDO::FETCH_ASSOC);
     $new_customers = $new_customers_row['count'];
 
-    // Get new customers with loyalty cards
-    $loyalty_query = "SELECT COUNT(*) as count FROM customers 
-                     WHERE DATE(created_at) = CURDATE() AND has_loyalty_card = 1";
-    $stmt = $db->prepare($loyalty_query);
-    $stmt->execute();
-    $loyalty_row = $stmt->fetch(PDO::FETCH_ASSOC);
-    $loyalty_customers = $loyalty_row['count'];
+    // All customers are considered regular customers now
+    $loyalty_customers = $new_customers;
 } catch (PDOException $e) {
     $new_customers = 0;
     $loyalty_customers = 0;

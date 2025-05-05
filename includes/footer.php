@@ -104,7 +104,6 @@
     <?php if (isset($activeTab)): ?>
         <?php if ($activeTab === 'pos'): ?>
             <script src="assets/js/transaction.js"></script>
-            <script src="assets/js/debug.js"></script>
         <?php elseif ($activeTab === 'inventory'): ?>
             <script src="assets/js/inventory.js"></script>
         <?php elseif ($activeTab === 'book_requests'): ?>

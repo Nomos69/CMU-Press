@@ -375,11 +375,11 @@ function searchCustomer(searchTerm) {
     
     // Mock customer database
     const mockCustomers = [
-        { customer_id: 1, name: 'Michael Roberts', email: 'michael.roberts@example.com', phone: '555-123-4567', has_loyalty_card: true },
-        { customer_id: 2, name: 'Sarah Johnson', email: 'sarah.j@example.com', phone: '555-234-5678', has_loyalty_card: false },
-        { customer_id: 3, name: 'David Williams', email: 'd.williams@example.com', phone: '555-345-6789', has_loyalty_card: true },
-        { customer_id: 4, name: 'Jennifer Brown', email: 'jennifer.b@example.com', phone: '555-456-7890', has_loyalty_card: false },
-        { customer_id: 5, name: 'Robert Smith', email: 'robert.smith@example.com', phone: '555-567-8901', has_loyalty_card: true }
+        { customer_id: 1, name: 'Michael Roberts', email: 'michael.roberts@example.com', phone: '555-123-4567' },
+        { customer_id: 2, name: 'Sarah Johnson', email: 'sarah.j@example.com', phone: '555-234-5678' },
+        { customer_id: 3, name: 'David Williams', email: 'd.williams@example.com', phone: '555-345-6789' },
+        { customer_id: 4, name: 'Jennifer Brown', email: 'jennifer.b@example.com', phone: '555-456-7890' },
+        { customer_id: 5, name: 'Robert Smith', email: 'robert.smith@example.com', phone: '555-567-8901' }
     ];
     
     // Try using the server API first
@@ -434,8 +434,7 @@ function searchCustomer(searchTerm) {
                         customer_id: Math.floor(Math.random() * 1000) + 100,
                         name: searchTerm.trim(),
                         email: '',
-                        phone: '',
-                        has_loyalty_card: false
+                        phone: ''
                     };
                     addCustomerToTransaction(newCustomer);
                     showNotification(`Added new customer: ${newCustomer.name}`, 'success');
@@ -457,8 +456,7 @@ function searchCustomer(searchTerm) {
         customerField.value = customer.name;
         customerField.setAttribute('data-customer-id', customer.customer_id);
         
-        const loyaltyStatus = customer.has_loyalty_card ? ' (Loyalty Member)' : '';
-        showNotification(`Customer ${customer.name}${loyaltyStatus} added to transaction`, 'success');
+        showNotification(`Customer ${customer.name} added to transaction`, 'success');
     }
 }
 
@@ -870,380 +868,20 @@ function openRecentTransactionsModal() {
 }
 
 /**
- * Show receipt in a modal
- * @param {string|number} transactionId Transaction ID
- * @param {object} options Additional options
- */
-function showReceipt(transactionId, options = {}) {
-    const cashAmount = options.cashAmount || 0;
-    const change = options.change || 0;
-    const items = options.items || [];
-    const subtotal = options.subtotal || 71.80;
-    const total = options.total || 71.80;
-    
-    const receiptTemplate = `
-        <div class="receipt">
-            <div class="receipt-header">
-                <h3>CMU PRESS BOOKSTORE</h3>
-                <p>123 University Avenue, Carnegie</p>
-                <p>Pittsburgh, PA 15213</p>
-                <p>Tel: (412) 555-1234</p>
-            </div>
-            <div class="receipt-info">
-                <p><strong>Transaction #:</strong> ${transactionId}</p>
-                <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-                <p><strong>Time:</strong> ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                <p><strong>Cashier:</strong> ${getUserName()}</p>
-            </div>
-            <div class="receipt-items">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${items.map(item => `
-                            <tr>
-                                <td>${item.title || 'Book'}</td>
-                                <td>${item.quantity}</td>
-                                <td>${formatMoney(item.price)}</td>
-                                <td>${formatMoney(item.total)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-            <div class="receipt-summary">
-                <div class="summary-row">
-                    <span>Subtotal:</span>
-                    <span>${formatMoney(subtotal)}</span>
-                </div>
-                <div class="summary-row total">
-                    <span>Total:</span>
-                    <span>${formatMoney(total)}</span>
-                </div>
-            </div>
-            <div class="receipt-payment">
-                <div class="payment-row">
-                    <span>Cash:</span>
-                    <span>${formatMoney(cashAmount)}</span>
-                </div>
-                <div class="payment-row">
-                    <span>Change:</span>
-                    <span>${formatMoney(change)}</span>
-                </div>
-            </div>
-            <div class="receipt-footer">
-                <p>Thank you for your purchase!</p>
-                <p>Return Policy: Returns accepted within 30 days with receipt.</p>
-            </div>
-        </div>
-    `;
-    
-    // Create the modal with print button
-    openModal('Receipt', receiptTemplate, function() {
-        printReceipt(receiptTemplate);
-    }, 'Print Receipt');
-}
-
-/**
- * Print receipt
- * @param {string} receiptHTML Receipt HTML
- */
-function printReceipt(receiptHTML) {
-    // In a real application, this would open a print dialog
-    // For this demo, we'll just show a notification
-    showNotification('Printing receipt...', 'info');
-    
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank', 'width=600,height=600');
-    
-    // Add receipt styles
-    const receiptStyles = `
-        <style>
-            body {
-                font-family: 'Courier New', monospace;
-                margin: 0;
-                padding: 20px;
-                font-size: 12px;
-            }
-            
-            .receipt {
-                max-width: 300px;
-                margin: 0 auto;
-            }
-            
-            .receipt-header {
-                text-align: center;
-                margin-bottom: 20px;
-            }
-            
-            .receipt-header h3 {
-                margin: 0;
-                font-size: 16px;
-            }
-            
-            .receipt-details {
-                margin-bottom: 20px;
-            }
-            
-            .receipt-items table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 20px;
-            }
-            
-            .receipt-items th {
-                border-top: 1px solid #000;
-                border-bottom: 1px solid #000;
-                padding: 5px;
-                text-align: left;
-            }
-            
-            .receipt-items td {
-                padding: 5px;
-            }
-            
-            .receipt-items small {
-                font-size: 10px;
-            }
-            
-            .receipt-summary {
-                margin-bottom: 20px;
-            }
-            
-            .summary-row {
-                display: flex;
-                justify-content: space-between;
-            }
-            
-            .summary-row.total {
-                font-weight: bold;
-                border-top: 1px solid #000;
-                padding-top: 5px;
-                margin-top: 5px;
-            }
-            
-            .receipt-footer {
-                text-align: center;
-                margin-top: 20px;
-                border-top: 1px dashed #000;
-                padding-top: 10px;
-            }
-            
-            @media print {
-                body {
-                    padding: 0;
-                }
-                
-                button {
-                    display: none;
-                }
-            }
-        </style>
-    `;
-    
-    // Write to the new window
-    printWindow.document.write('<html><head><title>Receipt</title>' + receiptStyles + '</head><body>');
-    printWindow.document.write(receiptHTML);
-    printWindow.document.write('<button onclick="window.print()">Print</button>');
-    printWindow.document.write('</body></html>');
-    
-    printWindow.document.close();
-}
-
-/**
- * Format currency
+ * Format money
  * @param {number} amount Amount to format
- * @returns {string} Formatted currency string
+ * @returns {string} Formatted money string
  */
-function formatCurrency(amount) {
+function formatMoney(amount) {
     return '₱' + amount.toFixed(2);
 }
 
 /**
- * Format money value
- * @param {number} value Value to format
- * @returns {string} Formatted money string
- */
-function formatMoney(value) {
-    return '₱' + value.toFixed(2);
-}
-
-/**
- * Get status badge HTML
+ * Get status badge
  * @param {string} status Transaction status
- * @returns {string} HTML status badge
+ * @returns {string} Status badge HTML
  */
 function getStatusBadge(status) {
-    let className = '';
-    let label = status.charAt(0).toUpperCase() + status.slice(1);
-    
-    switch (status) {
-        case 'completed':
-            className = 'success';
-            break;
-        case 'on_hold':
-        case 'on-hold':
-            className = 'warning';
-            label = 'On Hold';
-            break;
-        case 'cancelled':
-            className = 'danger';
-            break;
-        default:
-            className = 'info';
-            break;
-    }
-    
-    return `<span class="status ${className}">${label}</span>`;
-}
-
-/**
- * Add a transaction to the recent transactions list
- * @param {Object} transaction The transaction to add
- */
-function addRecentTransaction(transaction) {
-    // Add to UI
-    updateRecentTransactionsUI(transaction);
-    
-    // Save to localStorage
-    saveTransactionToStorage(transaction);
-}
-
-/**
- * Update the recent transactions UI
- * @param {Object} transaction The transaction to add
- */
-function updateRecentTransactionsUI(transaction) {
-    const table = document.querySelector('.transactions-table tbody');
-    if (!table) return;
-    
-    // Remove "no data" row if it exists
-    const noDataRow = table.querySelector('.no-data');
-    if (noDataRow) {
-        noDataRow.remove();
-    }
-    
-    // Create new row
-    const row = document.createElement('tr');
-    
-    // Format the time
-    const date = new Date(transaction.transaction_date);
-    const timeString = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
-    row.innerHTML = `
-        <td>#${transaction.transaction_id}</td>
-        <td>${timeString}</td>
-        <td>${transaction.customer_name || 'Guest'}</td>
-        <td>${transaction.item_count}</td>
-        <td>${formatMoney(transaction.total)}</td>
-        <td>${getStatusBadge(transaction.status || 'completed')}</td>
-    `;
-    
-    // Add to the top of the table
-    if (table.firstChild) {
-        table.insertBefore(row, table.firstChild);
-    } else {
-        table.appendChild(row);
-    }
-    
-    // Keep only the most recent 3 transactions
-    const rows = table.querySelectorAll('tr');
-    if (rows.length > 3) {
-        for (let i = 3; i < rows.length; i++) {
-            rows[i].remove();
-        }
-    }
-}
-
-/**
- * Save transaction to localStorage
- * @param {Object} transaction The transaction to save
- */
-function saveTransactionToStorage(transaction) {
-    // Get existing transactions
-    const storedTransactions = localStorage.getItem('recent_transactions');
-    let transactions = storedTransactions ? JSON.parse(storedTransactions) : [];
-    
-    // Add new transaction at the beginning
-    transactions.unshift(transaction);
-    
-    // Keep only the most recent 20 transactions
-    if (transactions.length > 20) {
-        transactions = transactions.slice(0, 20);
-    }
-    
-    // Save back to localStorage
-    localStorage.setItem('recent_transactions', JSON.stringify(transactions));
-}
-
-/**
- * Load stored transactions from localStorage
- */
-function loadStoredTransactions() {
-    const storedTransactions = localStorage.getItem('recent_transactions');
-    if (!storedTransactions) return;
-    
-    try {
-        const transactions = JSON.parse(storedTransactions);
-        
-        // Clear "no data" message if present
-        const table = document.querySelector('.transactions-table tbody');
-        if (table) {
-            const noDataRow = table.querySelector('.no-data');
-            if (noDataRow && transactions.length > 0) {
-                noDataRow.remove();
-            }
-            
-            // Add most recent 3 transactions
-            const recentTransactions = transactions.slice(0, 3);
-            recentTransactions.forEach(transaction => {
-                updateRecentTransactionsUI(transaction);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading stored transactions:', error);
-    }
-}
-
-/**
- * Initialize inventory search in POS page
- */
-function initializeInventorySearch() {
-    const inventorySearchInput = document.getElementById('inventory-search');
-    const searchInventoryBtn = document.getElementById('search-inventory-btn');
-    
-    if (!inventorySearchInput || !searchInventoryBtn) {
-        console.log("Inventory search elements not found");
-        return;
-    }
-    
-    searchInventoryBtn.addEventListener('click', function() {
-        const searchTerm = inventorySearchInput.value.trim();
-        if (searchTerm !== '') {
-            console.log("Searching inventory for:", searchTerm);
-            searchAndAddItem(searchTerm);
-            inventorySearchInput.value = '';
-        } else {
-            alert("Please enter a search term");
-        }
-    });
-    
-    inventorySearchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const searchTerm = this.value.trim();
-            if (searchTerm !== '') {
-                console.log("Searching inventory for:", searchTerm);
-                searchAndAddItem(searchTerm);
-                this.value = '';
-            } else {
-                alert("Please enter a search term");
-            }
-        }
-    });
+    const badgeClass = status === 'completed' ? 'badge-success' : 'badge-warning';
+    return `<span class="badge ${badgeClass}">${status.toUpperCase()}</span>`;
 }
