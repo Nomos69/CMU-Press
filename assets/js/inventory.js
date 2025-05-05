@@ -99,9 +99,29 @@ function initializeManualInventory() {
  */
 function initializeInventorySearch() {
     const searchForm = document.querySelector('.search-inventory form');
-    const searchInput = document.querySelector('.search-inventory input');
+    const searchInput = document.querySelector('.search-inventory input[name="search"]');
+    const searchButton = document.querySelector('.search-inventory button');
     
-    if (!searchForm || !searchInput) return;
+    if (!searchInput || !searchButton) {
+        console.warn("Inventory search elements not found");
+        return;
+    }
+    
+    // Add event listener for the search button
+    searchButton.addEventListener('click', function(e) {
+        if (!searchForm) {
+            e.preventDefault();
+            performInventorySearch(searchInput.value.trim());
+        }
+    });
+    
+    // Add event listener for Enter key in search input
+    searchInput.addEventListener('keypress', function(e) {
+        if (!searchForm && e.key === 'Enter') {
+            e.preventDefault();
+            performInventorySearch(this.value.trim());
+        }
+    });
     
     // Add clear search button if there's a search value
     if (searchInput.value.trim() !== '') {
@@ -113,11 +133,32 @@ function initializeInventorySearch() {
         
         clearButton.addEventListener('click', function() {
             searchInput.value = '';
-            searchForm.submit();
+            if (searchForm) {
+                searchForm.submit();
+            } else {
+                window.location.href = 'index.php?tab=inventory';
+            }
         });
         
         searchInput.parentNode.insertBefore(clearButton, searchInput.nextSibling);
     }
+}
+
+/**
+ * Perform inventory search
+ * @param {string} query Search query
+ */
+function performInventorySearch(query) {
+    if (query.trim() === '') {
+        showNotification('Please enter a search term', 'warning');
+        return;
+    }
+    
+    // Show loading notification
+    showNotification('Searching inventory...', 'info');
+    
+    // Redirect to inventory page with search query
+    window.location.href = `index.php?tab=inventory&search=${encodeURIComponent(query)}`;
 }
 
 /**
@@ -254,34 +295,34 @@ function openEditBookModal(bookId) {
  * Open bulk update modal
  */
 function openBulkUpdateModal() {
-    // Create bulk update form HTML
-    const bulkUpdateForm = `
+    // Create modal HTML
+    const modalContent = `
         <div class="bulk-update-form">
             <div class="form-group">
                 <label for="bulk-action">Action</label>
                 <select id="bulk-action">
                     <option value="increase">Increase Stock</option>
                     <option value="decrease">Decrease Stock</option>
-                    <option value="set">Set Stock Quantity</option>
+                    <option value="set">Set Stock To</option>
                 </select>
             </div>
             <div class="form-group">
                 <label for="bulk-value">Value</label>
-                <input type="number" id="bulk-value" min="1" value="1">
+                <input type="number" id="bulk-value" value="1" min="1">
             </div>
             <div class="form-group">
-                <label for="bulk-criteria">Apply to</label>
+                <label for="bulk-criteria">Apply To</label>
                 <select id="bulk-criteria">
                     <option value="all">All Books</option>
-                    <option value="low_stock">Low Stock Books Only</option>
-                    <option value="out_of_stock">Out of Stock Books Only</option>
+                    <option value="low_stock">Low Stock Books</option>
+                    <option value="out_of_stock">Out of Stock Books</option>
                 </select>
             </div>
-            <p class="form-note">This will update stock quantities for multiple books at once.</p>
         </div>
     `;
     
-    openModal('Bulk Update Inventory', bulkUpdateForm, processBulkUpdate);
+    // Open modal
+    openModal('Bulk Update Stock', modalContent, processBulkUpdate);
 }
 
 /**
@@ -315,7 +356,7 @@ function addBook() {
     };
 
     // Send data to API
-    fetch('api/book/create.php', {
+    fetch('api/book/add.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -324,7 +365,7 @@ function addBook() {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.message && data.message.includes('successfully')) {
             showNotification('Book added successfully!', 'success');
             closeModal();
             
@@ -384,7 +425,7 @@ function updateBook(bookId) {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.message && data.message.includes('successfully')) {
             showNotification('Book updated successfully!', 'success');
             closeModal();
             
@@ -506,20 +547,22 @@ function processBulkUpdate() {
         );
     });
     
-    // Process all updates
+    // Show loading notification
+    showNotification(`Updating ${bookRows.length} books...`, 'info');
+    
+    // Wait for all updates to complete
     Promise.all(updatePromises)
-        .then(() => {
+        .then(responses => {
+            showNotification('Bulk update completed successfully!', 'success');
             closeModal();
-            showNotification('Bulk update completed successfully.', 'success');
             
-            // Reload page to show updated stocks
+            // Refresh page after a short delay
             setTimeout(() => {
                 window.location.reload();
             }, 1000);
         })
         .catch(error => {
             console.error('Error during bulk update:', error);
-            closeModal();
             showNotification('An error occurred during bulk update.', 'error');
         });
 }
@@ -639,35 +682,21 @@ function setBookStock(bookId, newStock) {
 }
 
 /**
- * Update book status cell based on stock
+ * Update book status cell based on stock quantity
  * @param {HTMLElement} bookRow Book table row
  * @param {number} stockQty Stock quantity
  */
 function updateBookStatusCell(bookRow, stockQty) {
     const statusCell = bookRow.querySelector('td:nth-child(6)');
+    const threshold = parseInt(bookRow.getAttribute('data-threshold') || 5);
     
-    // Get low stock threshold
-    let threshold = 5; // Default
-    const thresholdData = bookRow.getAttribute('data-threshold');
-    if (thresholdData) {
-        threshold = parseInt(thresholdData);
-    }
-    
-    // Determine status
-    let status, statusClass;
     if (stockQty <= 0) {
-        status = 'Out of Stock';
-        statusClass = 'status-out-of-stock';
+        statusCell.innerHTML = '<span class="status status-out-of-stock">Out of Stock</span>';
     } else if (stockQty <= threshold) {
-        status = 'Low Stock';
-        statusClass = 'status-low-stock';
+        statusCell.innerHTML = '<span class="status status-low-stock">Low Stock</span>';
     } else {
-        status = 'In Stock';
-        statusClass = 'status-in-stock';
+        statusCell.innerHTML = '<span class="status status-in-stock">In Stock</span>';
     }
-    
-    // Update status cell
-    statusCell.innerHTML = `<span class="status-indicator ${statusClass}">${status}</span>`;
 }
 
 /**
@@ -740,69 +769,5 @@ function showNotification(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-/**
- * Open modal
- * @param {string} title Modal title
- * @param {string} content Modal content HTML
- * @param {Function} confirmCallback Function to call on confirm
- */
-function openModal(title, content, confirmCallback) {
-    // Create modal overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'modal-overlay';
-    
-    // Create modal container
-    const modal = document.createElement('div');
-    modal.id = 'modal-container';
-    
-    // Create modal header
-    const header = document.createElement('div');
-    header.id = 'modal-header';
-    header.innerHTML = `
-        <h2>${title}</h2>
-        <button id="modal-close">&times;</button>
-    `;
-    
-    // Create modal content
-    const contentDiv = document.createElement('div');
-    contentDiv.id = 'modal-content';
-    contentDiv.innerHTML = content;
-    
-    // Create modal footer
-    const footer = document.createElement('div');
-    footer.id = 'modal-footer';
-    footer.innerHTML = `
-        <button id="modal-cancel" class="btn-secondary">Cancel</button>
-        <button id="modal-confirm" class="btn-primary">Confirm</button>
-    `;
-    
-    // Assemble modal
-    modal.appendChild(header);
-    modal.appendChild(contentDiv);
-    modal.appendChild(footer);
-    overlay.appendChild(modal);
-    
-    // Add to body
-    document.body.appendChild(overlay);
-    
-    // Add event listeners
-    document.getElementById('modal-close').addEventListener('click', closeModal);
-    document.getElementById('modal-cancel').addEventListener('click', closeModal);
-    document.getElementById('modal-confirm').addEventListener('click', function() {
-        if (confirmCallback && confirmCallback()) {
-            // If the callback returns true, close the modal
-            // The callback itself is responsible for closing the modal if it returns false
-            closeModal();
-        }
-    });
-}
-
-/**
- * Close modal
- */
-function closeModal() {
-    const overlay = document.getElementById('modal-overlay');
-    if (overlay) {
-        document.body.removeChild(overlay);
-    }
-}
+// Note: Using openModal and closeModal functions from main.js
+// The duplicate functions were removed to fix modal button functionality

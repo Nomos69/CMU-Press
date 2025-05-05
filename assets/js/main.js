@@ -24,13 +24,14 @@ function initializeGlobalFunctions() {
  * Initialize notification system
  */
 function initializeNotifications() {
-    // Create notifications container if it doesn't exist
-    if (!document.getElementById('notifications-container')) {
-        const container = document.createElement('div');
+    // Check if notifications container already exists
+    let container = document.getElementById('notifications-container');
+    
+    // If container doesn't exist, create it
+    if (!container) {
+        container = document.createElement('div');
         container.id = 'notifications-container';
         document.body.appendChild(container);
-        
-        // Styles are now in main.css - no need to add them dynamically
     }
 }
 
@@ -189,6 +190,10 @@ function closeModal() {
     // Remove body class to allow scrolling
     document.body.classList.remove('modal-open');
 }
+
+// Ensure these functions are available globally
+window.openModal = openModal;
+window.closeModal = closeModal;
 
 /**
  * Open book request modal

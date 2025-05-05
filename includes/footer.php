@@ -5,7 +5,7 @@
         <div id="modal-container">
             <div id="modal-header">
                 <h2 id="modal-title">Modal Title</h2>
-                <button id="modal-close"><i class="fas fa-times"></i></button>
+                <button id="modal-close">&times;</button>
             </div>
             <div id="modal-content">
                 <!-- Modal content will be dynamically inserted here -->

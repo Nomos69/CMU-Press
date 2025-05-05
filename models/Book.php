@@ -150,22 +150,38 @@ class Book {
         return false;
     }
     
-    // Search books (non-deleted only)
+    /**
+     * Search books (non-deleted only)
+     * @param {string} keywords Search keywords
+     * @return PDOStatement
+     */
     public function search($keywords) {
         $query = "SELECT * FROM " . $this->table_name . " 
-                  WHERE title LIKE ? OR author LIKE ? OR isbn LIKE ?
-                  ORDER BY title ASC";
+                  WHERE title LIKE :keywords 
+                  OR author LIKE :keywords 
+                  OR isbn LIKE :keywords
+                  OR book_id = :exact_id
+                  ORDER BY 
+                    CASE 
+                        WHEN title LIKE :exact_match THEN 1
+                        WHEN author LIKE :exact_match THEN 2
+                        WHEN isbn = :exact_keywords THEN 3
+                        ELSE 4
+                    END,
+                    title ASC";
         
         $stmt = $this->conn->prepare($query);
         
         // Sanitize keywords
         $keywords = htmlspecialchars(strip_tags($keywords));
-        $keywords = "%{$keywords}%";
+        $likeKeywords = "%{$keywords}%";
+        $exactMatch = $keywords;
         
         // Bind variables
-        $stmt->bindParam(1, $keywords);
-        $stmt->bindParam(2, $keywords);
-        $stmt->bindParam(3, $keywords);
+        $stmt->bindParam(':keywords', $likeKeywords);
+        $stmt->bindParam(':exact_match', $exactMatch);
+        $stmt->bindParam(':exact_keywords', $keywords);
+        $stmt->bindParam(':exact_id', $keywords);
         
         $stmt->execute();
         

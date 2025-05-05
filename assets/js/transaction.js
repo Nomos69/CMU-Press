@@ -3,15 +3,42 @@
  * Handles transaction-related functionality
  */
 
+// Determine the API root path based on the current URL structure
+const API_ROOT_PATH = (() => {
+    // Get the current path
+    const path = window.location.pathname;
+    // Check if we're in a subdirectory or not
+    if (path.includes('/index.php')) {
+        // We're at root level
+        return '';
+    } else if (path.endsWith('/')) {
+        // We're at root level with trailing slash
+        return '';
+    } else {
+        // We might be in a subdirectory
+        const pathParts = path.split('/');
+        // Remove the last part (file name)
+        pathParts.pop();
+        return pathParts.join('/') + '/';
+    }
+})();
+
+console.log('API root path detected as:', API_ROOT_PATH);
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM content loaded, initializing transaction system');
     // Initialize transaction functionality
-    initializeTransaction();
+    setTimeout(() => {
+        initializeTransaction();
+    }, 100); // Small delay to ensure DOM is fully loaded
 });
 
 /**
  * Initialize transaction functionality
  */
 function initializeTransaction() {
+    console.log('Initializing transaction functionality');
+    
     // Initialize item search
     initializeItemSearch();
     
@@ -35,6 +62,9 @@ function initializeTransaction() {
     
     // Initialize inventory search in POS page
     initializeInventorySearch();
+    
+    // Added receipt button listeners
+    addReceiptButtonListeners();
 }
 
 /**
@@ -87,11 +117,23 @@ function initializeCustomerSearch() {
  * Initialize transaction buttons
  */
 function initializeTransactionButtons() {
+    console.log('Initializing transaction buttons');
     const transactionOptions = document.querySelectorAll('.btn-option');
     
+    if (transactionOptions.length === 0) {
+        console.warn('No transaction option buttons found');
+    }
+    
     transactionOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            const optionType = this.getAttribute('data-type');
+        const optionType = option.getAttribute('data-type');
+        console.log('Found transaction button:', optionType);
+        
+        // Remove any existing event listeners
+        option.removeEventListener('click', transactionButtonHandler);
+        
+        // Add new event listener - using direct function for clarity
+        option.addEventListener('click', function(event) {
+            console.log('Transaction button clicked:', optionType);
             
             if (optionType === 'new') {
                 startNewTransaction();
@@ -122,6 +164,8 @@ function initializePaymentMethods() {
  * Show cash payment modal for entering cash amount
  */
 function showCashPaymentModal() {
+    console.log('Opening cash payment modal');
+    
     // Check if there are items in the transaction
     const transactionItems = document.getElementById('transaction-items');
     const rows = transactionItems.querySelectorAll('tr');
@@ -132,11 +176,20 @@ function showCashPaymentModal() {
     }
     
     // Get the total amount from the transaction
-    const totalAmount = parseFloat(document.getElementById('total').textContent.replace('₱', ''));
-    if (totalAmount <= 0) {
+    const totalElement = document.getElementById('total');
+    if (!totalElement) {
+        console.error('Total element not found');
+        showNotification('Error: Could not find transaction total', 'error');
+        return;
+    }
+    
+    const totalAmount = parseFloat(totalElement.textContent.replace('₱', ''));
+    if (isNaN(totalAmount) || totalAmount <= 0) {
         showNotification('Cannot process a zero-amount transaction', 'warning');
         return;
     }
+    
+    console.log('Total amount:', totalAmount);
     
     // Create modal content
     const modalContent = `
@@ -158,21 +211,38 @@ function showCashPaymentModal() {
         </div>
     `;
     
-    // Show modal
-    openModal('Cash Payment', modalContent, processCashPayment);
+    // Check if openModal function exists
+    if (typeof openModal !== 'function') {
+        console.error('openModal function not defined');
+        showNotification('Error: Modal system not loaded properly', 'error');
+        return;
+    }
     
-    // Add event listener for calculating change
-    const cashAmountInput = document.getElementById('cash-amount');
-    if (cashAmountInput) {
-        cashAmountInput.addEventListener('input', function() {
-            const cashAmount = parseFloat(this.value) || totalAmount;
-            const change = cashAmount - totalAmount;
-            document.getElementById('change-amount').textContent = formatCurrency(change >= 0 ? change : 0);
-        });
+    // Show modal with wrapper to handle any errors
+    try {
+        openModal('Cash Payment', modalContent, processCashPayment);
         
-        // Focus on input
-        cashAmountInput.focus();
-        cashAmountInput.select();
+        // Add event listener for calculating change
+        const cashAmountInput = document.getElementById('cash-amount');
+        if (cashAmountInput) {
+            cashAmountInput.addEventListener('input', function() {
+                const cashAmount = parseFloat(this.value) || totalAmount;
+                const change = cashAmount - totalAmount;
+                const changeElement = document.getElementById('change-amount');
+                if (changeElement) {
+                    changeElement.textContent = formatCurrency(change >= 0 ? change : 0);
+                }
+            });
+            
+            // Focus on input
+            cashAmountInput.focus();
+            cashAmountInput.select();
+        } else {
+            console.error('Cash amount input not found after opening modal');
+        }
+    } catch (error) {
+        console.error('Error opening cash payment modal:', error);
+        showNotification('Error with checkout system. Please try again.', 'error');
     }
 }
 
@@ -180,30 +250,194 @@ function showCashPaymentModal() {
  * Process cash payment
  */
 function processCashPayment() {
-    const cashAmount = parseFloat(document.getElementById('cash-amount').value);
-    const totalAmount = parseFloat(document.getElementById('total').textContent.replace('₱', ''));
+    console.log('Processing cash payment');
     
-    // Validate cash amount
-    if (isNaN(cashAmount) || cashAmount < totalAmount) {
-        showNotification('Cash amount must be greater than or equal to the total', 'warning');
-        return;
+    try {
+        const cashAmountInput = document.getElementById('cash-amount');
+        const totalElement = document.getElementById('total');
+        
+        if (!cashAmountInput || !totalElement) {
+            console.error('Cash amount or total element not found');
+            showNotification('Error processing payment: Required elements not found', 'error');
+            return;
+        }
+        
+        const cashAmount = parseFloat(cashAmountInput.value);
+        const totalAmount = parseFloat(totalElement.textContent.replace('₱', ''));
+        
+        console.log('Cash amount:', cashAmount, 'Total amount:', totalAmount);
+        
+        // Validate cash amount
+        if (isNaN(cashAmount) || cashAmount < totalAmount) {
+            showNotification('Cash amount must be greater than or equal to the total', 'warning');
+            return;
+        }
+        
+        // Calculate change
+        const change = cashAmount - totalAmount;
+        
+        // Store cash payment details for checkout process
+        window.cashAmount = cashAmount;
+        window.change = change;
+        
+        // Close modal
+        if (typeof closeModal === 'function') {
+            closeModal();
+        } else {
+            console.error('closeModal function not defined');
+            // Try to close modal manually
+            const modalOverlay = document.getElementById('modal-overlay');
+            if (modalOverlay) {
+                modalOverlay.classList.add('hidden');
+            }
+        }
+        
+        // Show success notification
+        showNotification(`Cash payment accepted. Change: ${formatCurrency(change)}`, 'success');
+        
+        // Process the transaction
+        processTransaction();
+    } catch (error) {
+        console.error('Error in processCashPayment:', error);
+        showNotification('Error processing payment. Please try again.', 'error');
     }
+}
+
+/**
+ * Process the transaction after payment is confirmed
+ */
+function processTransaction() {
+    console.log('Processing transaction');
     
-    // Calculate change
-    const change = cashAmount - totalAmount;
-    
-    // Store cash payment details for checkout process
-    window.cashAmount = cashAmount;
-    window.change = change;
-    
-    // Close modal
-    closeModal();
-    
-    // Show notification with change
-    showNotification(`Cash payment accepted. Change: ${formatCurrency(change)}`, 'success');
-    
-    // Process checkout
-    processCheckout();
+    try {
+        // Get all transaction items
+        const transactionItems = document.getElementById('transaction-items');
+        if (!transactionItems) {
+            console.error('Transaction items container not found');
+            showNotification('Error: Could not find transaction items', 'error');
+            return;
+        }
+        
+        const rows = transactionItems.querySelectorAll('tr');
+        if (rows.length === 0) {
+            showNotification('Cannot process an empty transaction', 'warning');
+            return;
+        }
+        
+        // Build transaction data
+        const items = [];
+        rows.forEach(row => {
+            const bookId = row.getAttribute('data-book-id');
+            const title = row.querySelector('td:nth-child(1)').textContent;
+            const price = parseFloat(row.querySelector('td:nth-child(3)').textContent.replace('₱', ''));
+            const quantity = parseInt(row.querySelector('.qty-value').textContent);
+            const total = parseFloat(row.querySelector('td:nth-child(5)').textContent.replace('₱', ''));
+            
+            items.push({
+                book_id: bookId,
+                quantity: quantity,
+                price: price,
+                total: total,
+                title: title // Add title for display purposes
+            });
+        });
+        
+        // Get customer ID if any
+        const customerField = document.getElementById('customer-field');
+        const customerId = customerField && customerField.hasAttribute('data-customer-id') ? 
+                        customerField.getAttribute('data-customer-id') : null;
+        const customerName = customerField && customerField.value ? customerField.value.trim() : 'Guest';
+        
+        // Get transaction summary values
+        const subtotalElement = document.getElementById('subtotal');
+        const totalElement = document.getElementById('total');
+        
+        if (!subtotalElement || !totalElement) {
+            console.error('Transaction summary elements not found');
+            showNotification('Error: Could not find transaction summary', 'error');
+            return;
+        }
+        
+        const subtotal = parseFloat(subtotalElement.textContent.replace('₱', ''));
+        const total = parseFloat(totalElement.textContent.replace('₱', ''));
+        
+        // Get cash details
+        const cashAmount = window.cashAmount || total;
+        const change = window.change || 0;
+        
+        // Transaction data object
+        const transactionData = {
+            customer_id: customerId,
+            customer_name: customerName,
+            user_id: 1, // In a real application, this would be the logged-in user's ID
+            items: items,
+            payment_method: 'cash',
+            subtotal: subtotal,
+            discount: 0,
+            total: total,
+            cash_amount: cashAmount,
+            change: change,
+            status: 'completed'
+        };
+        
+        console.log('Transaction data:', transactionData);
+        
+        // Show loading notification
+        showNotification('Processing transaction...', 'info');
+        
+        // For demonstration, use a simulated transaction ID
+        const simulatedTransactionId = Math.floor(Math.random() * 10000) + 1000;
+        
+        // Get the API URL with the correct path
+        const apiUrl = `${API_ROOT_PATH}api/transaction/create.php`;
+        console.log('Sending transaction to API:', apiUrl);
+        
+        // Try to save the transaction via API
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(transactionData),
+        })
+        .then(response => {
+            console.log('API response status:', response.status);
+            
+            if (response.ok) {
+                return response.json().catch(err => {
+                    console.warn('Could not parse JSON response:', err);
+                    return null;
+                });
+            } else {
+                console.error('API error response:', response.status);
+                throw new Error('Server error: ' + response.status);
+            }
+        })
+        .then(data => {
+            console.log('Transaction API response:', data);
+            
+            if (data && data.transaction_id) {
+                // Complete with the returned transaction ID
+                completeTransaction(data.transaction_id, items, transactionData);
+            } else {
+                console.log('Using simulated transaction ID:', simulatedTransactionId);
+                // Fall back to simulated ID
+                completeTransaction(simulatedTransactionId, items, transactionData);
+            }
+        })
+        .catch(error => {
+            console.error('API error:', error);
+            
+            // Show error notification but still complete the transaction offline
+            showNotification('Warning: Could not connect to server. Processing transaction offline.', 'warning');
+            
+            // Fall back to simulated ID
+            completeTransaction(simulatedTransactionId, items, transactionData);
+        });
+    } catch (error) {
+        console.error('Transaction processing error:', error);
+        showNotification('Error processing transaction: ' + error.message, 'error');
+    }
 }
 
 /**
@@ -212,20 +446,31 @@ function processCashPayment() {
 function initializeCheckout() {
     const checkoutBtn = document.getElementById('checkout-btn');
     
-    if (!checkoutBtn) return;
+    if (!checkoutBtn) {
+        console.warn('Checkout button not found');
+        return;
+    }
     
-    checkoutBtn.addEventListener('click', function() {
-        const transactionItems = document.getElementById('transaction-items');
-        const rows = transactionItems.querySelectorAll('tr');
-        
-        if (rows.length === 0) {
-            showNotification('Cannot checkout an empty transaction', 'warning');
-            return;
-        }
-        
-        // Open cash payment modal
-        showCashPaymentModal();
-    });
+    // Remove any existing event listeners
+    checkoutBtn.removeEventListener('click', processCheckout);
+    
+    // Add new event listener
+    checkoutBtn.addEventListener('click', processCheckout);
+    
+    // Update checkout button text
+    updateCheckoutButtonText();
+}
+
+/**
+ * Update checkout button text with total
+ */
+function updateCheckoutButtonText() {
+    const checkoutBtn = document.getElementById('checkout-btn');
+    const total = document.getElementById('total');
+    
+    if (checkoutBtn && total) {
+        checkoutBtn.textContent = `Checkout (${total.textContent})`;
+    }
 }
 
 /**
@@ -253,115 +498,129 @@ function addReceiptButtonListeners() {
  * @param {string} searchTerm Search term
  */
 function searchAndAddItem(searchTerm) {
+    if (searchTerm.trim() === '') {
+        showNotification('Please enter a search term', 'warning');
+        return;
+    }
+
     // Show loading indicator
     console.log("Searching for item:", searchTerm);
+    showNotification('Searching for items...', 'info');
+    
+    // Add debugging to console
+    console.log("Fetching from:", `${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(searchTerm)}`);
+    
+    // Direct fetch to ensure we're bypassing any caching or issues with the API wrapper
+    fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(searchTerm)}`)
+        .then(response => {
+            console.log("API response status:", response.status);
+            console.log("API response headers:", [...response.headers.entries()]);
+            
+            // Check if response is ok (status 200-299)
+            if (response.ok) {
+                return response.json().catch(error => {
+                    console.error("JSON parsing error:", error);
+                    throw new Error('Invalid JSON response from server');
+                });
+            }
+            
+            // Handle 404 (not found) specially
+            if (response.status === 404) {
+                console.log("404 response: No books found");
+                return { books: [] };
+            }
+            
+            // For any other error, throw an exception
+            console.error("Non-OK, Non-404 response:", response.status);
+            throw new Error(`API error: ${response.status}`);
+        })
+        .then(data => {
+            console.log("Search response data:", data);
+            
+            if (data && data.books && data.books.length > 0) {
+                // Use the first book from search results
+                const book = data.books[0];
+                console.log("Found book:", book);
+                addBookToTransaction(book);
+                return;
+            }
+            
+            // No books found
+            console.log("No books found or empty response");
+            showNotification(`No items found matching "${searchTerm}"`, 'warning');
+        })
+        .catch(error => {
+            console.error("Search error:", error);
+            
+            // Try using relative path as fallback
+            console.log("Trying alternative URL with relative path...");
+            fetch(`${API_ROOT_PATH}../api/book/search.php?q=${encodeURIComponent(searchTerm)}`)
+                .then(response => {
+                    console.log("Alternative API response status:", response.status);
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Alternative path also failed');
+                })
+                .then(data => {
+                    console.log("Alternative search response data:", data);
+                    if (data && data.books && data.books.length > 0) {
+                        const book = data.books[0];
+                        console.log("Found book via alternative path:", book);
+                        addBookToTransaction(book);
+                        return;
+                    }
+                    showNotification(`No items found matching "${searchTerm}"`, 'warning');
+                })
+                .catch(altError => {
+                    console.error("Alternative search also failed:", altError);
+                    showNotification('Error searching for items. Please check server connection or try refreshing the page.', 'error');
+                });
+        });
+}
+
+/**
+ * Add found book to transaction
+ * @param {Object} book Book to add
+ */
+function addBookToTransaction(book) {
+    console.log("Adding book to transaction:", book);
+    
+    // Validate book object
+    if (!book || typeof book !== 'object') {
+        console.error("Invalid book object:", book);
+        showNotification("Invalid book data received from server", 'error');
+        return;
+    }
+    
+    // Check for required fields
+    if (!book.book_id || !book.title || !book.price) {
+        console.error("Book missing required fields:", book);
+        showNotification("Book data incomplete, missing required fields", 'error');
+        return;
+    }
+    
+    // Check if book has stock or stock data is missing
+    if (book.stock_qty !== undefined && book.stock_qty <= 0) {
+        showNotification(`"${book.title}" is out of stock`, 'warning');
+        return;
+    }
     
     try {
-        // Create notifications container if it doesn't exist
-        if (!document.getElementById('notifications-container')) {
-            console.log("Creating notifications container");
-            const container = document.createElement('div');
-            container.id = 'notifications-container';
-            container.style.position = 'fixed';
-            container.style.top = '100px';
-            container.style.right = '20px';
-            container.style.zIndex = '9999';
-            container.style.width = '300px';
-            document.body.appendChild(container);
-        }
+        addTransactionItem({
+            book_id: book.book_id,
+            title: book.title,
+            author: book.author || 'Unknown', // Provide default if missing
+            price: parseFloat(book.price) || 0,
+            quantity: 1,
+            total: parseFloat(book.price) || 0
+        });
         
-        // Show notification
-        showNotification('Searching for items...', 'info');
+        updateTransactionSummary();
+        showNotification(`Added "${book.title}" to transaction`, 'success');
     } catch (error) {
-        console.error("Error showing notification:", error);
-        // Default to alert as fallback
-        alert('Searching for items...');
-    }
-    
-    // Mock book database for demonstration
-    const mockBooks = [
-        { book_id: 1, title: 'The Great Gatsby', author: 'F. Scott Fitzgerald', price: 14.99, stock_qty: 25 },
-        { book_id: 2, title: 'To Kill a Mockingbird', author: 'Harper Lee', price: 12.50, stock_qty: 18 },
-        { book_id: 3, title: '1984', author: 'George Orwell', price: 11.99, stock_qty: 14 },
-        { book_id: 4, title: 'Pride and Prejudice', author: 'Jane Austen', price: 9.99, stock_qty: 22 },
-        { book_id: 5, title: 'The Catcher in the Rye', author: 'J.D. Salinger', price: 10.50, stock_qty: 16 },
-        { book_id: 6, title: 'Brave New World', author: 'Aldous Huxley', price: 13.75, stock_qty: 8 },
-        { book_id: 7, title: 'The Hobbit', author: 'J.R.R. Tolkien', price: 15.99, stock_qty: 20 },
-        { book_id: 8, title: 'Lord of the Flies', author: 'William Golding', price: 11.25, stock_qty: 12 },
-        { book_id: 9, title: 'Animal Farm', author: 'George Orwell', price: 9.75, stock_qty: 17 },
-        { book_id: 10, title: 'The Alchemist', author: 'Paulo Coelho', price: 12.99, stock_qty: 19 },
-        // Add more books for testing with keywords
-        { book_id: 11, title: 'Babel', author: 'R.F. Kuang', price: 18.99, stock_qty: 15 },
-        { book_id: 12, title: 'Bible', author: 'Various', price: 24.99, stock_qty: 30 },
-        { book_id: 13, title: 'Book of Testing', author: 'Test Author', price: 9.99, stock_qty: 10 }
-    ];
-    
-    // API call is not working properly, go directly to mock search
-    searchMockBooks(searchTerm);
-    
-    /**
-     * Search mock books database
-     * @param {string} term Search term
-     */
-    function searchMockBooks(term) {
-        console.log("Searching mock books for:", term);
-        
-        // Convert to lowercase for case-insensitive search
-        const searchLower = term.toLowerCase();
-        
-        // Search in titles and authors
-        const matchingBooks = mockBooks.filter(book => 
-            book.title.toLowerCase().includes(searchLower) || 
-            book.author.toLowerCase().includes(searchLower) ||
-            book.book_id.toString() === term // Exact match for ID
-        );
-        
-        console.log("Matching books found:", matchingBooks.length, matchingBooks);
-        
-        if (matchingBooks.length > 0) {
-            // Add the first matching book
-            console.log("Found book in mock data:", matchingBooks[0]);
-            addBookToTransaction(matchingBooks[0]);
-        } else {
-            console.log("No books found in mock data");
-            try {
-                showNotification('No matching items found for "' + term + '"', 'warning');
-            } catch (error) {
-                console.error("Error showing notification:", error);
-                alert('No matching items found for "' + term + '"');
-            }
-        }
-    }
-    
-    /**
-     * Add found book to transaction
-     * @param {Object} book Book to add
-     */
-    function addBookToTransaction(book) {
-        console.log("Adding book to transaction:", book);
-        try {
-            addTransactionItem({
-                book_id: book.book_id,
-                title: book.title,
-                author: book.author,
-                price: parseFloat(book.price),
-                quantity: 1,
-                total: parseFloat(book.price)
-            });
-            
-            updateTransactionSummary();
-            
-            try {
-                showNotification(`Added "${book.title}" to transaction`, 'success');
-            } catch (error) {
-                console.error("Error showing notification:", error);
-                alert(`Added "${book.title}" to transaction`);
-            }
-            
-        } catch (error) {
-            console.error("Error adding book to transaction:", error);
-            alert(`Error adding "${book.title}" to transaction. See console for details.`);
-        }
+        console.error("Error adding book to transaction:", error);
+        showNotification(`Error adding "${book.title}" to transaction: ${error.message}`, 'error');
     }
 }
 
@@ -383,7 +642,7 @@ function searchCustomer(searchTerm) {
     ];
     
     // Try using the server API first
-    fetch(`api/customer/search.php?q=${encodeURIComponent(searchTerm)}`)
+    fetch(`${API_ROOT_PATH}api/customer/search.php?q=${encodeURIComponent(searchTerm)}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('API not available');
@@ -572,55 +831,78 @@ function updateItemQuantity(row, change) {
  * Update transaction summary totals
  */
 function updateTransactionSummary() {
-    const transactionItems = document.getElementById('transaction-items');
-    const rows = transactionItems.querySelectorAll('tr');
-    
     let subtotal = 0;
+    let total = 0;
     
-    // Calculate subtotal
+    // Get all transaction rows
+    const rows = document.querySelectorAll('#transaction-items tr');
+    
+    // Calculate totals
     rows.forEach(row => {
-        const totalElement = row.querySelector('td:nth-child(5)');
-        const total = parseFloat(totalElement.textContent.replace('₱', ''));
-        subtotal += total;
+        const itemTotal = parseFloat(row.querySelector('td:nth-child(5)').textContent.replace('₱', ''));
+        subtotal += itemTotal;
     });
     
-    // Total is now equal to subtotal (no tax)
-    const total = subtotal;
+    // Set total equal to subtotal for now (can add tax or discounts here later)
+    total = subtotal;
     
-    // Update elements
-    document.getElementById('subtotal').textContent = formatCurrency(subtotal);
-    document.getElementById('total').textContent = formatCurrency(total);
-    document.getElementById('checkout-btn').textContent = `Checkout (${formatCurrency(total)})`;
+    // Update displayed values
+    document.getElementById('subtotal').textContent = '₱ ' + subtotal.toFixed(2);
+    document.getElementById('total').textContent = '₱ ' + total.toFixed(2);
+    
+    // Update checkout button text as well
+    updateCheckoutButtonText();
 }
 
 /**
  * Start new transaction
  */
 function startNewTransaction() {
-    // Clear transaction items
-    const transactionItems = document.getElementById('transaction-items');
-    transactionItems.innerHTML = '';
+    console.log('Starting new transaction');
     
-    // Clear customer field
-    const customerField = document.getElementById('customer-field');
-    customerField.value = '';
-    customerField.removeAttribute('data-customer-id');
-    
-    // Update transaction summary
-    updateTransactionSummary();
-    
-    // Increment transaction ID
-    const transactionIdElement = document.getElementById('transaction-id');
-    const currentId = parseInt(transactionIdElement.textContent);
-    transactionIdElement.textContent = currentId + 1;
-    
-    showNotification('Started new transaction', 'success');
+    try {
+        // Clear transaction items
+        const transactionItems = document.getElementById('transaction-items');
+        if (transactionItems) {
+            transactionItems.innerHTML = '';
+        } else {
+            console.error('Transaction items container not found');
+        }
+        
+        // Clear customer field
+        const customerField = document.getElementById('customer-field');
+        if (customerField) {
+            customerField.value = '';
+            customerField.removeAttribute('data-customer-id');
+        }
+        
+        // Reset cash amount and change
+        window.cashAmount = null;
+        window.change = null;
+        
+        // Update transaction summary
+        updateTransactionSummary();
+        
+        // Increment transaction ID
+        const transactionIdElement = document.getElementById('transaction-id');
+        if (transactionIdElement) {
+            const currentId = parseInt(transactionIdElement.textContent);
+            transactionIdElement.textContent = currentId + 1;
+        }
+        
+        // Show success notification
+        showNotification('Started new transaction', 'success');
+    } catch (error) {
+        console.error('Error starting new transaction:', error);
+        showNotification('Error starting new transaction', 'error');
+    }
 }
 
 /**
  * Process checkout
  */
 function processCheckout() {
+    console.log('Processing checkout');
     const transactionItems = document.getElementById('transaction-items');
     const rows = transactionItems.querySelectorAll('tr');
     
@@ -629,102 +911,8 @@ function processCheckout() {
         return;
     }
     
-    // Always use cash payment method
-    const paymentMethod = 'cash';
-    
-    // Build transaction data
-    const items = [];
-    rows.forEach(row => {
-        const bookId = row.getAttribute('data-book-id');
-        const title = row.querySelector('td:nth-child(1)').textContent;
-        const price = parseFloat(row.querySelector('td:nth-child(3)').textContent.replace('₱', ''));
-        const quantity = parseInt(row.querySelector('.qty-value').textContent);
-        const total = parseFloat(row.querySelector('td:nth-child(5)').textContent.replace('₱', ''));
-        
-        items.push({
-            book_id: bookId,
-            quantity: quantity,
-            price: price,
-            total: total
-        });
-    });
-    
-    // Get customer ID if any
-    const customerField = document.getElementById('customer-field');
-    const customerId = customerField.hasAttribute('data-customer-id') ? 
-                      customerField.getAttribute('data-customer-id') : null;
-    
-    // Get transaction summary values
-    const subtotal = parseFloat(document.getElementById('subtotal').textContent.replace('₱', ''));
-    const total = parseFloat(document.getElementById('total').textContent.replace('₱', ''));
-    
-    // Get cash details if available
-    const cashAmount = window.cashAmount || total;
-    const change = window.change || 0;
-    
-    const transactionData = {
-        customer_id: customerId,
-        user_id: 1, // In a real application, this would be the logged-in user's ID
-        items: items,
-        payment_method: paymentMethod,
-        subtotal: subtotal,
-        discount: 0, // No discount feature
-        total: total,
-        cash_amount: cashAmount,
-        change: change,
-        status: 'completed'
-    };
-    
-    // Show loading notification
-    showNotification('Processing transaction...', 'info');
-    
-    // Try to call the API endpoint
-    try {
-        // For demonstration/development, create a simulated transaction ID 
-        // This will be used if the API call fails
-        const simulatedTransactionId = Math.floor(Math.random() * 10000) + 1000;
-        
-        // First check if the API endpoint exists by sending a HEAD request
-        fetch('api/transaction/create.php', { method: 'HEAD' })
-            .then(response => {
-                if (response.ok) {
-                    // API endpoint exists, send the real request
-                    return fetch('api/transaction/create.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(transactionData),
-                    });
-                } else {
-                    // API endpoint doesn't exist, use fallback
-                    throw new Error('API endpoint not found');
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Server returned error');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.transaction_id) {
-                    completeTransaction(data.transaction_id, items, transactionData);
-                } else {
-                    // Use simulated transaction ID as fallback
-                    completeTransaction(simulatedTransactionId, items, transactionData);
-                }
-            })
-            .catch(error => {
-                console.log('API error:', error);
-                // Use simulated transaction ID as fallback
-                completeTransaction(simulatedTransactionId, items, transactionData);
-            });
-    } catch (error) {
-        console.error('Error in transaction processing:', error);
-        // Use simulated transaction ID as fallback
-        completeTransaction(simulatedTransactionId, items, transactionData);
-    }
+    // Open cash payment modal
+    showCashPaymentModal();
 }
 
 /**
@@ -794,7 +982,7 @@ function openRecentTransactionsModal() {
     let recentTransactions = storedTransactions ? JSON.parse(storedTransactions) : [];
     
     // Try using the server API first
-    fetch('api/transaction/get_recent.php')
+    fetch(`${API_ROOT_PATH}api/transaction/get_recent.php`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('API not available');
@@ -868,12 +1056,30 @@ function openRecentTransactionsModal() {
 }
 
 /**
- * Format money
+ * Format currency with peso sign
+ * @param {number} amount Amount to format
+ * @returns {string} Formatted currency string
+ */
+function formatCurrency(amount) {
+    // Convert to number if it's a string
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    
+    // Check if value is a valid number
+    if (isNaN(numAmount)) {
+        console.warn('Invalid amount passed to formatCurrency:', amount);
+        return '₱ 0.00';
+    }
+    
+    return '₱ ' + numAmount.toFixed(2);
+}
+
+/**
+ * Format money (alias for formatCurrency for backward compatibility)
  * @param {number} amount Amount to format
  * @returns {string} Formatted money string
  */
 function formatMoney(amount) {
-    return '₱' + amount.toFixed(2);
+    return formatCurrency(amount);
 }
 
 /**
@@ -884,4 +1090,139 @@ function formatMoney(amount) {
 function getStatusBadge(status) {
     const badgeClass = status === 'completed' ? 'badge-success' : 'badge-warning';
     return `<span class="badge ${badgeClass}">${status.toUpperCase()}</span>`;
+}
+
+/**
+ * Initialize inventory search in POS interface
+ */
+function initializeInventorySearch() {
+    console.log("Initializing inventory search");
+    const inventorySearchInput = document.getElementById('inventory-search');
+    const searchInventoryBtn = document.getElementById('search-inventory-btn');
+    
+    if (!inventorySearchInput || !searchInventoryBtn) {
+        console.warn("Inventory search elements not found");
+        return;
+    }
+    
+    console.log("Found inventory search elements, attaching event listeners");
+    
+    // Add event listener to search button
+    searchInventoryBtn.addEventListener('click', function() {
+        console.log("Inventory search button clicked");
+        if (inventorySearchInput.value.trim() !== '') {
+            performInventorySearch(inventorySearchInput.value.trim());
+        } else {
+            showNotification('Please enter a search term', 'warning');
+        }
+    });
+    
+    // Add event listener for Enter key in search input
+    inventorySearchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            console.log("Enter key pressed in inventory search");
+            if (this.value.trim() !== '') {
+                performInventorySearch(this.value.trim());
+            } else {
+                showNotification('Please enter a search term', 'warning');
+            }
+        }
+    });
+}
+
+/**
+ * Perform inventory search - redirects to inventory page with search query
+ * @param {string} query Search query
+ */
+function performInventorySearch(query) {
+    if (query.trim() === '') {
+        showNotification('Please enter a search term', 'warning');
+        return;
+    }
+    
+    console.log("Performing inventory search for:", query);
+    showNotification(`Searching inventory for "${query}"...`, 'info');
+    
+    // Redirect to inventory page with search query
+    setTimeout(() => {
+        window.location.href = `${API_ROOT_PATH}index.php?tab=inventory&search=${encodeURIComponent(query)}`;
+    }, 500);
+}
+
+/**
+ * Load stored transactions from localStorage
+ */
+function loadStoredTransactions() {
+    console.log("Loading stored transactions");
+    try {
+        const storedTransactions = localStorage.getItem('recent_transactions');
+        
+        if (!storedTransactions) {
+            console.log("No stored transactions found");
+            return;
+        }
+        
+        // Parse transactions
+        const transactions = JSON.parse(storedTransactions);
+        console.log(`Loaded ${transactions.length} stored transactions`);
+        
+        // Display transactions in recent transactions section
+        const recentTransactionsContainer = document.querySelector('.transactions-table tbody');
+        
+        if (!recentTransactionsContainer) {
+            console.warn("Recent transactions container not found");
+            return;
+        }
+        
+        // Clear existing rows
+        recentTransactionsContainer.innerHTML = '';
+        
+        // Add up to 5 most recent transactions
+        const recentTransactions = transactions.slice(0, 5);
+        
+        recentTransactions.forEach(transaction => {
+            const date = new Date(transaction.transaction_date);
+            const timeString = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>#${transaction.transaction_id}</td>
+                <td>${timeString}</td>
+                <td>${transaction.customer_name || 'Guest'}</td>
+                <td>${transaction.item_count}</td>
+                <td>${formatMoney(transaction.total)}</td>
+                <td>${getStatusBadge(transaction.status || 'completed')}</td>
+            `;
+            
+            recentTransactionsContainer.appendChild(row);
+        });
+    } catch (error) {
+        console.error("Error loading stored transactions:", error);
+    }
+}
+
+/**
+ * Add a transaction to recent transactions
+ * @param {Object} transaction Transaction data
+ */
+function addRecentTransaction(transaction) {
+    console.log("Adding recent transaction:", transaction);
+    try {
+        // Get stored transactions or initialize empty array
+        const storedTransactions = localStorage.getItem('recent_transactions');
+        const transactions = storedTransactions ? JSON.parse(storedTransactions) : [];
+        
+        // Add new transaction at the beginning
+        transactions.unshift(transaction);
+        
+        // Keep only the 50 most recent transactions
+        const recentTransactions = transactions.slice(0, 50);
+        
+        // Save back to localStorage
+        localStorage.setItem('recent_transactions', JSON.stringify(recentTransactions));
+        
+        console.log("Transaction saved to localStorage");
+    } catch (error) {
+        console.error("Error saving transaction to localStorage:", error);
+    }
 }
