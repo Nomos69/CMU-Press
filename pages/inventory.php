@@ -28,7 +28,7 @@ while ($row = $collegesStmt->fetch(PDO::FETCH_ASSOC)) {
     }
 }
 
-// Get books count
+// Get books count for pagination
 $totalItems = $book->count();
 
 // Get books based on search, college filter, or all books
@@ -128,7 +128,7 @@ foreach ($books as $book) {
                             <tbody>
                                 <?php if (empty($books)): ?>
                                     <tr>
-                                        <td colspan="7" class="no-data">No books found.</td>
+                                        <td colspan="8" class="no-data">No books found.</td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($books as $book): ?>
@@ -237,5 +237,3 @@ foreach ($books as $book) {
         <p class="form-note">* Required fields</p>
     </div>
 </template>
-
-<!-- No longer needed reorder template has been removed -->

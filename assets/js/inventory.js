@@ -18,11 +18,6 @@ function initializeInventory() {
     // Initialize edit book buttons
     initializeEditBooks();
     
-    // Initialize reorder buttons
-    initializeReorderButtons();
-    
-    // Delete functionality removed
-    
     // Initialize manual inventory update
     initializeManualInventory();
     
@@ -698,8 +693,116 @@ function updateInventoryUI() {
 }
 
 /**
- * Initialize reorder buttons
+ * Show notification
+ * @param {string} message Message to display
+ * @param {string} type Notification type (success, error, info, warning)
+ * @param {number} duration Duration in ms
  */
-function initializeReorderButtons() {
-    // Reorder functionality has been removed
+function showNotification(message, type = 'info', duration = 3000) {
+    // Create notification container if it doesn't exist
+    let container = document.getElementById('notifications-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notifications-container';
+        document.body.appendChild(container);
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        ${message}
+        <span class="notification-close">&times;</span>
+    `;
+    
+    // Add to container
+    container.appendChild(notification);
+    
+    // Add close button functionality
+    const closeBtn = notification.querySelector('.notification-close');
+    closeBtn.addEventListener('click', function() {
+        notification.classList.add('closing');
+        setTimeout(() => {
+            container.removeChild(notification);
+        }, 300);
+    });
+    
+    // Auto remove after duration
+    setTimeout(() => {
+        if (container.contains(notification)) {
+            notification.classList.add('closing');
+            setTimeout(() => {
+                if (container.contains(notification)) {
+                    container.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, duration);
+}
+
+/**
+ * Open modal
+ * @param {string} title Modal title
+ * @param {string} content Modal content HTML
+ * @param {Function} confirmCallback Function to call on confirm
+ */
+function openModal(title, content, confirmCallback) {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-overlay';
+    
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.id = 'modal-container';
+    
+    // Create modal header
+    const header = document.createElement('div');
+    header.id = 'modal-header';
+    header.innerHTML = `
+        <h2>${title}</h2>
+        <button id="modal-close">&times;</button>
+    `;
+    
+    // Create modal content
+    const contentDiv = document.createElement('div');
+    contentDiv.id = 'modal-content';
+    contentDiv.innerHTML = content;
+    
+    // Create modal footer
+    const footer = document.createElement('div');
+    footer.id = 'modal-footer';
+    footer.innerHTML = `
+        <button id="modal-cancel" class="btn-secondary">Cancel</button>
+        <button id="modal-confirm" class="btn-primary">Confirm</button>
+    `;
+    
+    // Assemble modal
+    modal.appendChild(header);
+    modal.appendChild(contentDiv);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    
+    // Add to body
+    document.body.appendChild(overlay);
+    
+    // Add event listeners
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('modal-cancel').addEventListener('click', closeModal);
+    document.getElementById('modal-confirm').addEventListener('click', function() {
+        if (confirmCallback && confirmCallback()) {
+            // If the callback returns true, close the modal
+            // The callback itself is responsible for closing the modal if it returns false
+            closeModal();
+        }
+    });
+}
+
+/**
+ * Close modal
+ */
+function closeModal() {
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay) {
+        document.body.removeChild(overlay);
+    }
 }

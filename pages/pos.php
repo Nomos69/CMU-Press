@@ -305,19 +305,7 @@ try {
                         <button id="search-inventory-btn"><i class="fas fa-search"></i></button>
                     </div>
                     <div class="low-stock-items">
-                        <?php foreach($low_stock_items as $item): ?>
-                        <div class="low-stock-item">
-                            <div class="item-info">
-                                <h3><?php echo htmlspecialchars($item['title']); ?></h3>
-                                <p><?php echo htmlspecialchars($item['author']); ?></p>
-                            </div>
-                            <div class="item-stock">
-                                <span class="remaining"><?php echo $item['stock_qty']; ?></span>
-                                <span class="remaining-label">remaining</span>
-                                <button class="reorder-btn" data-id="<?php echo $item['book_id']; ?>">Reorder</button>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
+                        <!-- Low stock items removed -->
                     </div>
                     <button class="request-book-btn">
                         <i class="fas fa-book"></i>

@@ -145,12 +145,11 @@ INSERT INTO `books` (`title`, `author`, `isbn`, `price`, `stock_qty`, `low_stock
 ('Pride and Prejudice', 'Jane Austen', '9780141439518', 9.99, 14, 3, 'College of Arts and Sciences'),
 ('The Hobbit', 'J.R.R. Tolkien', '9780547928227', 14.99, 19, 5, 'College of Arts and Sciences'),
 ('The Alchemist', 'Paulo Coelho', '9780062315007', 16.99, 13, 3, 'College of Business and Management'),
-('The Hunger Games', 'Suzanne Collins', '9780439023481', 12.99, 8, 5, 'College of Arts and Sciences'),
-('Harry Potter and the Sorcerer\'s Stone', 'J.K. Rowling', '9780590353427', 24.99, 7, 5, 'College of Education');
+('The Hunger Games', 'Suzanne Collins', '9780439023481', 12.99, 8, 5, 'College of Arts and Sciences');
 
 -- Sample Users (password hash for 'password123')
 INSERT INTO `users` (`username`, `password`, `name`, `role`) VALUES
-('admin', '$2y$10$rUGX4XcyMqR1Kfu2n1bKG.VbhUDJ9R6UMoGMeqQMk6g3B.CSuPy3i', 'Admin User', 'admin'),
+('admin', '$2a$10$r8toSCFdngcnfh0iHeLUeOW5w09JMQ2p7zikZUA/oohQhcje48sey', 'Admin User', 'admin'),
 ('emma', '$2y$10$rUGX4XcyMqR1Kfu2n1bKG.VbhUDJ9R6UMoGMeqQMk6g3B.CSuPy3i', 'Emma Thompson', 'staff'),
 ('john', '$2y$10$rUGX4XcyMqR1Kfu2n1bKG.VbhUDJ9R6UMoGMeqQMk6g3B.CSuPy3i', 'John Davis', 'staff');
 
@@ -171,7 +170,7 @@ INSERT INTO `customers` (`name`, `email`, `phone`) VALUES
 INSERT INTO `book_requests` (`title`, `author`, `requested_by`, `priority`, `quantity`, `status`) VALUES
 ('Babel', 'R.F. Kuang', 'Customer Request', 'high', 5, 'pending'),
 ('Tomorrow, and Tomorrow, and Tomorrow', 'Gabrielle Zevin', 'Customer Request', 'medium', 3, 'pending'),
-('The Lincoln Highway', 'Amor Towles', 'Staff Recommendation', 'low', 2, 'ordered'),
+('The Lincoln Highway', 'Amor Towles', 'Staff Recommendation', 'low', 2, 'pending'),
 ('Cloud Cuckoo Land', 'Anthony Doerr', 'Michael Roberts', 'medium', 1, 'pending'),
 ('The Four Winds', 'Kristin Hannah', 'Sarah Johnson', 'high', 3, 'pending');
 

@@ -30,95 +30,24 @@ function initializeNotifications() {
         container.id = 'notifications-container';
         document.body.appendChild(container);
         
-        // Add style for notifications container
-        const style = document.createElement('style');
-        style.textContent = `
-            #notifications-container {
-                position: fixed;
-                top: 100px;
-                right: 20px;
-                z-index: 9999;
-                width: 300px;
-            }
-            
-            .notification {
-                padding: 12px 15px;
-                margin-bottom: 10px;
-                border-radius: 4px;
-                color: white;
-                font-size: 14px;
-                font-weight: 500;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                animation: slideIn 0.3s ease-out forwards;
-            }
-            
-            .notification.closing {
-                animation: slideOut 0.3s ease-in forwards;
-            }
-            
-            .notification-success {
-                background-color: #4caf50;
-            }
-            
-            .notification-error {
-                background-color: #f44336;
-            }
-            
-            .notification-warning {
-                background-color: #ff9800;
-            }
-            
-            .notification-info {
-                background-color: #2196f3;
-            }
-            
-            .notification-close {
-                cursor: pointer;
-                font-size: 16px;
-                margin-left: 10px;
-            }
-            
-            @keyframes slideIn {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-            
-            @keyframes slideOut {
-                from {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(style);
+        // Styles are now in main.css - no need to add them dynamically
     }
 }
 
-/**
- * Show notification
- * @param {string} message Notification message
- * @param {string} type Notification type (success, error, warning, info)
- * @param {number} duration Duration in ms (0 for no auto-close)
- */
 function showNotification(message, type = 'info', duration = 3000) {
     const container = document.getElementById('notifications-container');
     
     if (!container) {
         console.error('Notifications container not found');
         return;
+    }
+    
+    // Check for existing identical notification to prevent duplicates
+    const existingNotifications = container.querySelectorAll(`.notification-${type}`);
+    for (let existingNote of existingNotifications) {
+        if (existingNote.textContent.includes(message)) {
+            return null; // Duplicate notification, do not show
+        }
     }
     
     // Create notification element
