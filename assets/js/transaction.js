@@ -369,10 +369,11 @@ function processTransaction() {
         const transactionData = {
             customer_id: customerId,
             customer_name: customerName,
-            user_id: 1, // In a real application, this would be the logged-in user's ID
+            user_id: 1, 
             items: items,
             payment_method: 'cash',
             subtotal: subtotal,
+            tax: 0, // Add tax field with default value of 0
             discount: 0,
             total: total,
             cash_amount: cashAmount,
