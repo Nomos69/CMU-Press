@@ -1,4 +1,7 @@
 <?php
+// Include logger utility
+include_once __DIR__ . '/../includes/logger.php';
+
 class Book {
     // Database connection and table name
     private $conn;
@@ -200,27 +203,164 @@ class Book {
         return $stmt;
     }
     
-    // Update stock quantity
+    // Update stock quantity (decrease)
     public function updateStock($quantity) {
+        // Direct file logging for debugging
+        $logFile = __DIR__ . '/../logs/debug.log';
+        file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Starting updateStock for Book ID {$this->book_id}, quantity: {$quantity}\n", FILE_APPEND);
+        
+        // First get current stock to check if we have enough
+        $check_query = "SELECT stock_qty FROM " . $this->table_name . " WHERE book_id = ? LIMIT 1";
+        $check_stmt = $this->conn->prepare($check_query);
+        $check_stmt->bindParam(1, $this->book_id);
+        
+        if (!$check_stmt->execute()) {
+            error_log("Failed to retrieve current stock for Book ID {$this->book_id}");
+            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Failed to retrieve current stock for Book ID {$this->book_id}\n", FILE_APPEND);
+            return false;
+        }
+        
+        $row = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            error_log("Book ID {$this->book_id} not found when updating stock");
+            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Book ID {$this->book_id} not found when updating stock\n", FILE_APPEND);
+            return false;
+        }
+        
+        $current_stock = intval($row['stock_qty']);
+        file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Current stock: {$current_stock}\n", FILE_APPEND);
+        
+        // Validate quantity is a positive number
+        $quantity = abs(intval($quantity));
+        
+        // Prevent stock from going negative
+        if($current_stock < $quantity) {
+            // If there's not enough stock, set to 0
+            $new_stock = 0;
+            error_log("Warning: Book ID {$this->book_id} stock reduced to 0 (tried to remove $quantity from $current_stock)");
+            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Warning: Book ID {$this->book_id} stock reduced to 0 (tried to remove $quantity from $current_stock)\n", FILE_APPEND);
+        } else {
+            $new_stock = $current_stock - $quantity;
+            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Calculated new stock: {$new_stock}\n", FILE_APPEND);
+        }
+        
+        // Update the stock directly with the calculated value
         $query = "UPDATE " . $this->table_name . " 
-                  SET stock_qty = stock_qty - ? 
+                  SET stock_qty = ? 
+                  WHERE book_id = ?";
+        
+        file_put_contents($logFile, date('[Y-m-d H:i:s]') . " SQL query: {$query} with params: [{$new_stock}, {$this->book_id}]\n", FILE_APPEND);
+        
+        $stmt = $this->conn->prepare($query);
+        
+        // Sanitize book_id
+        $this->book_id = htmlspecialchars(strip_tags($this->book_id));
+        
+        // Bind values
+        $stmt->bindParam(1, $new_stock);
+        $stmt->bindParam(2, $this->book_id);
+        
+        // Execute query and log the result
+        if($stmt->execute()) {
+            // Update the object's property to reflect the change
+            $this->stock_qty = $new_stock;
+            
+            // Log the stock change
+            error_log("Book ID {$this->book_id} stock updated: $current_stock -> $new_stock (removed $quantity)");
+            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " SUCCESS: Book ID {$this->book_id} stock updated: $current_stock -> $new_stock (removed $quantity)\n", FILE_APPEND);
+            
+            // Try to log using the logger
+            try {
+                // Use the logger utility for detailed logging
+                Logger::logInventoryUpdate(
+                    $this->book_id,
+                    'decreased',
+                    $quantity,
+                    $current_stock,
+                    $new_stock,
+                    'API: updateStock'
+                );
+            } catch (Exception $e) {
+                file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Logger exception: {$e->getMessage()}\n", FILE_APPEND);
+            }
+            
+            return true;
+        }
+        
+        error_log("Failed to update stock for Book ID {$this->book_id}");
+        file_put_contents($logFile, date('[Y-m-d H:i:s]') . " FAILURE: Failed to update stock for Book ID {$this->book_id}\n", FILE_APPEND);
+        
+        // Try to get any SQL error
+        if ($stmt->errorInfo() && isset($stmt->errorInfo()[2])) {
+            $error = $stmt->errorInfo()[2];
+            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " SQL Error: {$error}\n", FILE_APPEND);
+        }
+        
+        return false;
+    }
+    
+    // Increase stock quantity
+    public function increaseStock($quantity) {
+        // First get current stock
+        $check_query = "SELECT stock_qty FROM " . $this->table_name . " WHERE book_id = ? LIMIT 1";
+        $check_stmt = $this->conn->prepare($check_query);
+        $check_stmt->bindParam(1, $this->book_id);
+        
+        if (!$check_stmt->execute()) {
+            error_log("Failed to retrieve current stock for Book ID {$this->book_id}");
+            return false;
+        }
+        
+        $row = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            error_log("Book ID {$this->book_id} not found when increasing stock");
+            return false;
+        }
+        
+        $current_stock = intval($row['stock_qty']);
+        
+        // Validate quantity is a positive number
+        $quantity = abs(intval($quantity));
+        
+        // Calculate new stock
+        $new_stock = $current_stock + $quantity;
+        
+        // Update the stock directly with the calculated value
+        $query = "UPDATE " . $this->table_name . " 
+                  SET stock_qty = ? 
                   WHERE book_id = ?";
         
         $stmt = $this->conn->prepare($query);
         
-        // Sanitize data
+        // Sanitize book_id
         $this->book_id = htmlspecialchars(strip_tags($this->book_id));
-        $quantity = htmlspecialchars(strip_tags($quantity));
         
         // Bind values
-        $stmt->bindParam(1, $quantity);
+        $stmt->bindParam(1, $new_stock);
         $stmt->bindParam(2, $this->book_id);
         
-        // Execute query
+        // Execute query and log the result
         if($stmt->execute()) {
+            // Update the object's property to reflect the change
+            $this->stock_qty = $new_stock;
+            
+            // Log the stock change
+            error_log("Book ID {$this->book_id} stock updated: $current_stock -> $new_stock (added $quantity)");
+            
+            // Use the logger utility for detailed logging
+            Logger::logInventoryUpdate(
+                $this->book_id,
+                'increased',
+                $quantity,
+                $current_stock,
+                $new_stock,
+                'API: increaseStock'
+            );
+            
             return true;
         }
         
+        error_log("Failed to increase stock for Book ID {$this->book_id}");
         return false;
     }
     

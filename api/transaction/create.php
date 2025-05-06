@@ -11,6 +11,7 @@ include_once '../../config/database.php';
 include_once '../../models/Transaction.php';
 include_once '../../models/TransactionItem.php';
 include_once '../../models/Book.php';
+include_once '../../includes/logger.php';
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
@@ -50,6 +51,17 @@ if(
     try {
         // Create the transaction
         if($transaction->create()) {
+            // Log transaction creation
+            Logger::logTransaction(
+                $transaction->transaction_id,
+                'created',
+                [
+                    'status' => $transaction->status,
+                    'total' => $transaction->total,
+                    'items_count' => count($data->items)
+                ]
+            );
+            
             // Transaction created, now add items
             $transaction_items_created = true;
             
@@ -70,8 +82,26 @@ if(
                 
                 // Update book stock if transaction is completed
                 if($transaction->status === "completed") {
+                    // Create a new Book object for each item to avoid reusing the same object
+                    $book = new Book($db);
                     $book->book_id = $item->book_id;
-                    $book->updateStock($item->quantity);
+                    
+                    // Get the book data before updating
+                    if($book->getById()) {
+                        // Log this for debugging
+                        error_log("Transaction #{$transaction->transaction_id}: Processing stock update for book #{$item->book_id}, quantity: {$item->quantity}, current stock: {$book->stock_qty}");
+                        
+                        // Direct stock update - This is critical!
+                        if(!$book->updateStock($item->quantity)) {
+                            // If the update fails, log the error but continue processing
+                            error_log("Transaction #{$transaction->transaction_id}: Failed to update stock for book #{$item->book_id}");
+                        } else {
+                            // Log successful update
+                            error_log("Transaction #{$transaction->transaction_id}: Successfully updated stock for book #{$item->book_id}");
+                        }
+                    } else {
+                        error_log("Transaction #{$transaction->transaction_id}: Book #{$item->book_id} not found when updating stock");
+                    }
                 }
             }
             
@@ -79,6 +109,16 @@ if(
             if($transaction_items_created) {
                 // Commit transaction
                 $db->commit();
+                
+                // Log successful transaction completion
+                Logger::logTransaction(
+                    $transaction->transaction_id,
+                    'completed',
+                    [
+                        'status' => $transaction->status,
+                        'total' => $transaction->total
+                    ]
+                );
                 
                 // Set response code - 201 created
                 http_response_code(201);
@@ -91,6 +131,13 @@ if(
             } else {
                 // Rollback transaction
                 $db->rollBack();
+                
+                // Log transaction failure
+                Logger::logTransaction(
+                    $transaction->transaction_id,
+                    'failed',
+                    ['reason' => 'Unable to create transaction items']
+                );
                 
                 // Set response code - 503 service unavailable
                 http_response_code(503);

@@ -945,31 +945,140 @@ function completeTransaction(transactionId, items, transactionData) {
         status: 'completed'
     });
     
-    showNotification('Transaction completed successfully', 'success');
+    // Update inventory before showing the success message
+    if (items && items.length > 0) {
+        // First update the inventory
+        updateInventoryAfterSale(items)
+            .then(() => {
+                showNotification('Transaction completed successfully', 'success');
+                cleanupAfterTransaction();
+            })
+            .catch(error => {
+                console.error('Error updating inventory:', error);
+                showNotification('Transaction completed, but inventory update failed. Please check stock levels.', 'warning');
+                cleanupAfterTransaction();
+            });
+    } else {
+        showNotification('Transaction completed successfully', 'success');
+        cleanupAfterTransaction();
+    }
     
-    setTimeout(() => {
-        // Clear cash transaction data
-        window.cashAmount = null;
-        window.change = null;
-        
-        // Start new transaction
-        startNewTransaction();
-        
-        // Update items to reflect reduced inventory
-        updateInventoryAfterSale(items);
-    }, 500);
+    // Helper function to clean up after transaction
+    function cleanupAfterTransaction() {
+        setTimeout(() => {
+            // Clear cash transaction data
+            window.cashAmount = null;
+            window.change = null;
+            
+            // Start new transaction
+            startNewTransaction();
+        }, 500);
+    }
 }
 
 /**
- * Update inventory after sale (simulated function)
+ * Update inventory after sale
  * @param {Array} soldItems Items that were sold
+ * @returns {Promise} Promise that resolves when all inventory updates are complete
  */
 function updateInventoryAfterSale(soldItems) {
-    // In a real application, this would call an API to update inventory
-    console.log('Updating inventory after sale:', soldItems);
+    // Check if there are items to update
+    if (!soldItems || soldItems.length === 0) {
+        console.log('No items to update in inventory');
+        return Promise.resolve([]);
+    }
     
-    // For demonstration purposes, we're just showing a notification
-    showNotification('Inventory updated', 'info');
+    console.log('Updating inventory after sale:', soldItems);
+    showNotification('Updating inventory...', 'info');
+    
+    // Validate items have the required properties
+    const validItems = soldItems.filter(item => {
+        if (!item.book_id) {
+            console.error('Item missing book_id:', item);
+            return false;
+        }
+        if (!item.quantity || isNaN(item.quantity) || item.quantity <= 0) {
+            console.error('Item has invalid quantity:', item);
+            return false;
+        }
+        return true;
+    });
+    
+    if (validItems.length === 0) {
+        console.error('No valid items to update after filtering', soldItems);
+        return Promise.resolve([]);
+    }
+    
+    // Get a transaction ID - either real or simulated
+    const transactionIdElement = document.getElementById('transaction-id');
+    const transactionId = transactionIdElement ? 
+        parseInt(transactionIdElement.textContent) : 
+        Math.floor(Math.random() * 10000) + 1000;
+    
+    // Create request data
+    const requestData = {
+        transaction_id: transactionId,
+        items: validItems.map(item => ({
+            book_id: item.book_id,
+            quantity: item.quantity,
+            title: item.title || 'Unknown' // Include title for better logging
+        }))
+    };
+    
+    console.log('Sending inventory update request:', requestData);
+    
+    const apiUrl = `${API_ROOT_PATH}api/inventory/update_after_sale.php`;
+    console.log('API URL:', apiUrl);
+    
+    // Call the new dedicated inventory update API
+    return fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        console.log('Inventory API response status:', response.status);
+        console.log('Inventory API response headers:', 
+            Array.from(response.headers.entries()).map(([k, v]) => `${k}: ${v}`).join(', '));
+        
+        if (!response.ok) {
+            throw new Error(`Failed to update inventory. Server responded with ${response.status}`);
+        }
+        return response.json().catch(error => {
+            console.error('Error parsing JSON response:', error);
+            return response.text().then(text => {
+                console.error('Raw response text:', text);
+                throw new Error('Invalid JSON response from server');
+            });
+        });
+    })
+    .then(data => {
+        console.log('Inventory update response data:', data);
+        
+        if (data.success) {
+            showNotification('Inventory updated successfully', 'success');
+            
+            // Verify the update by logging each item's results
+            if (data.results && Array.isArray(data.results)) {
+                data.results.forEach(result => {
+                    console.log(`Book ${result.book_id} (${result.title}): Stock changed from ${result.previous_stock} to ${result.new_stock}`);
+                });
+            }
+            
+            return data.results;
+        } else {
+            console.warn('Inventory update warnings:', data);
+            showNotification('Inventory updated with warnings. Check stock levels.', 'warning');
+            return data.results;
+        }
+    })
+    .catch(error => {
+        console.error('Error updating inventory:', error);
+        showNotification('Error updating inventory. Please check stock levels.', 'error');
+        throw error;
+    });
 }
 
 /**

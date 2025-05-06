@@ -1,0 +1,84 @@
+[2025-05-06 16:36:18] Starting updateStock for Book ID 2, quantity: 1
+[2025-05-06 16:36:18] Current stock: 10
+[2025-05-06 16:36:18] Calculated new stock: 9
+[2025-05-06 16:36:18] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [9, 2]
+[2025-05-06 16:36:18] SUCCESS: Book ID 2 stock updated: 10 -> 9 (removed 1)
+[2025-05-06 16:36:41] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:41] Current stock: 70
+[2025-05-06 16:36:41] Calculated new stock: 69
+[2025-05-06 16:36:41] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [69, 1]
+[2025-05-06 16:36:41] SUCCESS: Book ID 1 stock updated: 70 -> 69 (removed 1)
+[2025-05-06 16:36:49] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:49] Current stock: 70
+[2025-05-06 16:36:49] Calculated new stock: 69
+[2025-05-06 16:36:49] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [69, 1]
+[2025-05-06 16:36:49] SUCCESS: Book ID 1 stock updated: 70 -> 69 (removed 1)
+[2025-05-06 16:36:49] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:49] Current stock: 69
+[2025-05-06 16:36:49] Calculated new stock: 68
+[2025-05-06 16:36:49] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [68, 1]
+[2025-05-06 16:36:49] SUCCESS: Book ID 1 stock updated: 69 -> 68 (removed 1)
+[2025-05-06 16:36:50] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:50] Current stock: 68
+[2025-05-06 16:36:50] Calculated new stock: 67
+[2025-05-06 16:36:50] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [67, 1]
+[2025-05-06 16:36:50] SUCCESS: Book ID 1 stock updated: 68 -> 67 (removed 1)
+[2025-05-06 16:36:51] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:51] Current stock: 67
+[2025-05-06 16:36:51] Calculated new stock: 66
+[2025-05-06 16:36:51] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [66, 1]
+[2025-05-06 16:36:51] SUCCESS: Book ID 1 stock updated: 67 -> 66 (removed 1)
+[2025-05-06 16:36:51] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:51] Current stock: 66
+[2025-05-06 16:36:51] Calculated new stock: 65
+[2025-05-06 16:36:51] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [65, 1]
+[2025-05-06 16:36:51] SUCCESS: Book ID 1 stock updated: 66 -> 65 (removed 1)
+[2025-05-06 16:36:52] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:52] Current stock: 65
+[2025-05-06 16:36:52] Calculated new stock: 64
+[2025-05-06 16:36:52] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [64, 1]
+[2025-05-06 16:36:52] SUCCESS: Book ID 1 stock updated: 65 -> 64 (removed 1)
+[2025-05-06 16:36:52] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:52] Current stock: 64
+[2025-05-06 16:36:52] Calculated new stock: 63
+[2025-05-06 16:36:52] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [63, 1]
+[2025-05-06 16:36:52] SUCCESS: Book ID 1 stock updated: 64 -> 63 (removed 1)
+[2025-05-06 16:36:52] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:52] Current stock: 63
+[2025-05-06 16:36:52] Calculated new stock: 62
+[2025-05-06 16:36:52] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [62, 1]
+[2025-05-06 16:36:52] SUCCESS: Book ID 1 stock updated: 63 -> 62 (removed 1)
+[2025-05-06 16:36:53] Starting updateStock for Book ID 1, quantity: 1
+[2025-05-06 16:36:53] Current stock: 62
+[2025-05-06 16:36:53] Calculated new stock: 61
+[2025-05-06 16:36:53] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [61, 1]
+[2025-05-06 16:36:53] SUCCESS: Book ID 1 stock updated: 62 -> 61 (removed 1)
+[2025-05-06 16:37:09] Starting updateStock for Book ID 4, quantity: 100
+[2025-05-06 16:37:09] Current stock: 51
+[2025-05-06 16:37:09] Warning: Book ID 4 stock reduced to 0 (tried to remove 100 from 51)
+[2025-05-06 16:37:09] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [0, 4]
+[2025-05-06 16:37:09] SUCCESS: Book ID 4 stock updated: 51 -> 0 (removed 100)
