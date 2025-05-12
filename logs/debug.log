@@ -82,3 +82,10 @@
                   SET stock_qty = ? 
                   WHERE book_id = ? with params: [0, 4]
 [2025-05-06 16:37:09] SUCCESS: Book ID 4 stock updated: 51 -> 0 (removed 100)
+[2025-05-12 06:52:26] Starting updateStock for Book ID 8, quantity: 2
+[2025-05-12 06:52:26] Current stock: 40
+[2025-05-12 06:52:26] Calculated new stock: 38
+[2025-05-12 06:52:26] SQL query: UPDATE books 
+                  SET stock_qty = ? 
+                  WHERE book_id = ? with params: [38, 8]
+[2025-05-12 06:52:26] SUCCESS: Book ID 8 stock updated: 40 -> 38 (removed 2)

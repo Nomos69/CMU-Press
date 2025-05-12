@@ -16,10 +16,6 @@
                 <img src="assets/img/logo.png" alt="CMU Press Logo" class="logo-image">
             </a>
         </div>
-        <div class="search-container">
-            <input type="text" id="search-input" placeholder="Search books by title, author...">
-            <button id="search-button"><i class="fas fa-search"></i></button>
-        </div>
         <div class="admin-login">
             <a href="login.php" class="btn-admin">Admin Login</a>
         </div>
@@ -43,8 +39,7 @@
             <!-- Book 1 -->
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book1.jpg" alt="Data Structure and Algorithm in JAVA" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status in-stock">In Stock</span>
+                    <img src="assets/img/books/book5.jpg" alt="Data Structure and Algorithm in JAVA" onerror="this.src='assets/img/books/placeholder.jpg'">
                 </div>
                 <div class="book-details">
                     <h3>Data Structure and Algorithm in JAVA</h3>
@@ -57,8 +52,7 @@
             <!-- Book 2 -->
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book2.jpg" alt="Discrete Mathematics and its Application" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status low-stock">Low Stock</span>
+                    <img src="assets/img/books/book7.jpg" alt="Discrete Mathematics and its Application" onerror="this.src='assets/img/books/placeholder.jpg'">
                 </div>
                 <div class="book-details">
                     <h3>Discrete Mathematics and its Application</h3>
@@ -71,8 +65,7 @@
             <!-- Book 3 -->
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book3.jpg" alt="Fundamental of Data Analytics" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status in-stock">In Stock</span>
+                    <img src="assets/img/books/book6.jpg" alt="Fundamental of Data Analytics" onerror="this.src='assets/img/books/placeholder.jpg'">
                 </div>
                 <div class="book-details">
                     <h3>Fundamental of Data Analytics</h3>
@@ -86,7 +79,6 @@
             <div class="book-card">
                 <div class="book-image">
                     <img src="assets/img/books/book4.jpg" alt="Information System Modeling" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status out-of-stock">Out of Stock</span>
                 </div>
                 <div class="book-details">
                     <h3>Information System Modeling</h3>
@@ -101,8 +93,7 @@
             <!-- Additional books here - second row -->
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book5.jpg" alt="Mein Kampf" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status in-stock">In Stock</span>
+                    <img src="assets/img/books/book1.jpg" alt="Mein Kampf" onerror="this.src='assets/img/books/placeholder.jpg'">
                 </div>
                 <div class="book-details">
                     <h3>Mein Kampf</h3>
@@ -114,8 +105,7 @@
 
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book6.jpg" alt="48 Laws of Power" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status in-stock">In Stock</span>
+                    <img src="assets/img/books/book3.jpg" alt="48 Laws of Power" onerror="this.src='assets/img/books/placeholder.jpg'">
                 </div>
                 <div class="book-details">
                     <h3>48 Laws of Power</h3>
@@ -127,8 +117,7 @@
 
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book7.jpg" alt="Art of War" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status in-stock">In Stock</span>
+                    <img src="assets/img/books/book2.jpg" alt="Art of War" onerror="this.src='assets/img/books/placeholder.jpg'">
                 </div>
                 <div class="book-details">
                     <h3>Art of War</h3>
@@ -141,7 +130,6 @@
             <div class="book-card">
                 <div class="book-image">
                     <img src="assets/img/books/book8.jpg" alt="Computer Architecture and Application" onerror="this.src='assets/img/books/placeholder.jpg'">
-                    <span class="stock-status in-stock">In Stock</span>
                 </div>
                 <div class="book-details">
                     <h3>Computer Architecture and Application</h3>

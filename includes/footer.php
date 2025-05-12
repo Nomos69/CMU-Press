@@ -108,8 +108,6 @@
             <script src="assets/js/inventory.js"></script>
         <?php elseif ($activeTab === 'book_requests'): ?>
             <script src="assets/js/book-requests.js"></script>
-        <?php elseif ($activeTab === 'reports'): ?>
-            <script src="assets/js/reports.js"></script>
         <?php elseif ($activeTab === 'settings'): ?>
             <script src="assets/js/settings.js"></script>
         <?php endif; ?>
@@ -281,8 +279,8 @@
       updateInventory(items)
         .then(response => {
           if (response.success) {
-            // Complete the transaction UI
-            completeTransaction(items, customerName);
+            // Complete the transaction UI with transaction ID
+            completeTransaction(items, customerName, response.transaction_id);
           } else {
             throw new Error(response.message || 'Failed to update inventory');
           }
@@ -369,11 +367,8 @@
   }
   
   // Complete the transaction in the UI
-  function completeTransaction(items, customerName) {
+  function completeTransaction(items, customerName, transactionId) {
     try {
-      // Generate transaction ID (would normally come from the server)
-      const transactionId = Math.floor(Math.random() * 10000) + 1000;
-      
       // Calculate total items
       const itemCount = items.reduce((total, item) => total + item.quantity, 0);
       
@@ -381,6 +376,16 @@
       const totalElement = document.getElementById('total');
       const totalAmount = totalElement ? 
                       parseFloat(totalElement.textContent.replace(/[^0-9.-]+/g, '')) : 0;
+      
+      // Update inventory after sale
+      updateInventoryAfterSale({
+        transaction_id: transactionId,
+        items: items
+      })
+      .catch(error => {
+        console.error('Error updating inventory:', error);
+        showNotification('Transaction completed, but inventory update failed. Please check stock levels.', 'warning');
+      });
       
       // Create transaction record
       const currentDate = new Date();
@@ -514,6 +519,47 @@
         container.removeChild(notification);
       }
     }, duration);
+  }
+  
+  // Update inventory after sale
+  function updateInventoryAfterSale(data) {
+    // If no items, resolve immediately
+    if (!data.items || data.items.length === 0) {
+      return Promise.resolve({ success: true, message: 'No items to update' });
+    }
+    
+    console.log('Updating inventory after sale:', data);
+    
+    // Call the inventory update API
+    return fetch('api/inventory/update_after_sale.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        transaction_id: data.transaction_id,
+        items: data.items.map(item => ({
+          book_id: item.book_id,
+          quantity: item.quantity,
+          title: item.title || 'Unknown' // Include title for better logging
+        }))
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to update inventory');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        console.log('Inventory updated successfully:', data);
+        return data;
+      } else {
+        console.warn('Inventory update warnings:', data);
+        return data;
+      }
+    });
   }
 })();
 </script>

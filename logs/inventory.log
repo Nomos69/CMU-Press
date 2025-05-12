@@ -1,2 +1,4 @@
 [2025-05-06 16:29:37] INVENTORY: Book #1 checked by 0. Stock: 70 -> 70 (API: check_stock)
 [2025-05-06 16:30:05] INVENTORY: Book #1 checked by 0. Stock: 70 -> 70 (API: check_stock)
+[2025-05-12 06:52:26] INVENTORY: Book #8 decreased by 2. Stock: 40 -> 38 (API: updateStock)
+[2025-05-12 06:52:26] INVENTORY: Book #8 sale-decrease by 2. Stock: 40 -> 38 (Transaction ID: 3380)

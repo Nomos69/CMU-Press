@@ -25,7 +25,7 @@ $user_role = $_SESSION['role'];
 $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'pos';
 
 // Define valid tabs
-$validTabs = ['pos', 'inventory', 'book_requests', 'reports', 'settings'];
+$validTabs = ['pos', 'inventory', 'book_requests', 'settings'];
 
 // If invalid tab, default to POS
 if (!in_array($activeTab, $validTabs)) {
@@ -37,8 +37,7 @@ $tabTitles = [
     'pos' => 'Point of Sale',
     'inventory' => 'Inventory Management',
     'book_requests' => 'Book Requests',
-    'reports' => 'Reports',
-    'settings' => 'Settings'
+    'settings' => 'System Settings'
 ];
 
 $pageTitle = $tabTitles[$activeTab];
@@ -56,48 +55,36 @@ echo '<main>';
 // Include appropriate tab content
 switch ($activeTab) {
     case 'pos':
-        // Load Book model for POS
-        require_once 'models/Book.php';
-        require_once 'models/Transaction.php';
-        require_once 'models/TransactionItem.php';
-        require_once 'models/BookRequest.php';
+        // Load models for POS
+        include_once 'models/Book.php';
+        include_once 'models/Transaction.php';
+        include_once 'models/Customer.php';
         include_once 'pages/pos.php';
         break;
     
     case 'inventory':
-        // Load Book model for inventory
-        require_once 'models/Book.php';
+        // Load models for inventory
+        include_once 'models/Book.php';
         include_once 'pages/inventory.php';
         break;
     
     case 'book_requests':
-        // Load BookRequest model
-        require_once 'models/BookRequest.php';
-        require_once 'models/Book.php';
+        // Load models for book requests
+        include_once 'models/BookRequest.php';
         include_once 'pages/book_requests.php';
         break;
     
-    case 'reports':
-        // Load models for reports
-        require_once 'models/Transaction.php';
-        require_once 'models/TransactionItem.php';
-        require_once 'models/Book.php';
-        require_once 'models/Customer.php';
-        include_once 'pages/reports.php';
-        break;
-    
     case 'settings':
-        // Load User model for settings
-        require_once 'models/User.php';
+        // Load models for settings
+        include_once 'models/User.php';
         include_once 'pages/settings.php';
         break;
     
     default:
         // Default to POS
-        require_once 'models/Book.php';
-        require_once 'models/Transaction.php';
-        require_once 'models/TransactionItem.php';
-        require_once 'models/BookRequest.php';
+        include_once 'models/Book.php';
+        include_once 'models/Transaction.php';
+        include_once 'models/Customer.php';
         include_once 'pages/pos.php';
         break;
 }
