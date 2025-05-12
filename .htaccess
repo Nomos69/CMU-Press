@@ -69,11 +69,10 @@ php_value error_reporting E_ALL
     RewriteEngine On
     RewriteBase /
     
-    # Redirect to the login page if not logged in
-    # RewriteCond %{REQUEST_URI} !^/login\.php
-    # RewriteCond %{REQUEST_URI} !^/assets/
-    # RewriteCond %{HTTP_COOKIE} !PHPSESSID
-    # RewriteRule .* login.php [L,R=302]
+    # Set landing page as default
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^$ landing.php [L]
     
     # Protect sensitive directories
     RewriteRule ^config/ - [F,L]

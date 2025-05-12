@@ -1,0 +1,357 @@
+/* Landing Page Styles */
+:root {
+    --primary-color: #16a34a;
+    --secondary-color: #f0fdf4;
+    --text-color: #333;
+    --light-gray: #f5f5f5;
+    --border-color: #e5e5e5;
+    --success-color: #16a34a;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: var(--text-color);
+    background-color: #fff;
+}
+
+/* Header Styles */
+.landing-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.logo-image {
+    height: 48px;
+    width: auto;
+    vertical-align: middle;
+}
+
+.search-container {
+    display: flex;
+    flex: 1;
+    max-width: 500px;
+    margin: 0 2rem;
+}
+
+.search-container input {
+    flex: 1;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px 0 0 4px;
+    font-size: 0.9rem;
+}
+
+.search-container button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+}
+
+.btn-admin {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.btn-admin:hover {
+    background-color: #15803d;
+}
+
+/* Hero Section */
+.hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8rem 4rem 4rem;
+    background-color: var(--secondary-color);
+    min-height: 400px;
+}
+
+.hero-content {
+    flex: 1;
+    max-width: 600px;
+}
+
+.hero h1 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.hero p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.btn-primary {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #15803d;
+}
+
+.hero-image {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 500px;
+}
+
+.hero-image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Book Collection Section */
+.book-collection {
+    padding: 4rem 2rem;
+}
+
+.book-collection h2 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 3rem;
+    color: var(--primary-color);
+}
+
+.book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.book-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    height: 100%;
+}
+
+.book-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.book-image {
+    position: relative;
+    height: 250px;
+    overflow: hidden;
+}
+
+.book-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.stock-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: white;
+}
+
+.in-stock {
+    background-color: var(--success-color);
+}
+
+.low-stock {
+    background-color: var(--warning-color);
+}
+
+.out-of-stock {
+    background-color: var(--danger-color);
+}
+
+.book-details {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.book-details h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+}
+
+.book-details .author {
+    color: #666;
+    margin: 0 0 1rem;
+    font-style: italic;
+}
+
+.book-details .description {
+    flex: 1;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.book-details .price {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin: 0;
+}
+
+/* Footer */
+footer {
+    background-color: #f8f9fa;
+    padding: 3rem 2rem 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.footer-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+}
+
+.footer-section {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: 1.5rem;
+    padding-right: 2rem;
+}
+
+.footer-section h3 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.footer-section p {
+    margin: 0.5rem 0;
+}
+
+.footer-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-section ul li {
+    margin-bottom: 0.5rem;
+}
+
+.footer-section ul li a {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.footer-section ul li a:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.copyright {
+    text-align: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .hero {
+        flex-direction: column;
+        padding: 7rem 2rem 3rem;
+    }
+    
+    .hero-content {
+        max-width: 100%;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .hero-image {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .landing-header {
+        flex-direction: column;
+        padding: 1rem;
+    }
+    
+    .logo {
+        margin-bottom: 1rem;
+    }
+
+    .logo-image {
+        height: 24px;
+    }
+    
+    .search-container {
+        margin: 1rem 0;
+        width: 100%;
+        max-width: 100%;
+    }
+    
+    .admin-login {
+        margin-top: 1rem;
+    }
+    
+    .book-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+    
+    .footer-content {
+        flex-direction: column;
+    }
+    
+    .footer-section {
+        margin-bottom: 2rem;
+        padding-right: 0;
+    }
+} 

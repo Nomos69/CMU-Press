@@ -1,0 +1,25 @@
+<svg width="500" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="500" height="400" fill="#f0fdf4"/>
+  
+  <!-- First book -->
+  <rect x="100" y="100" width="300" height="60" fill="#16a34a" stroke="#15803d" stroke-width="2"/>
+  <rect x="120" y="110" width="260" height="40" fill="#22c55e" stroke="#15803d" stroke-width="1"/>
+  <text x="250" y="135" font-family="Arial" font-size="18" text-anchor="middle" fill="#fff">Book 1</text>
+  
+  <!-- Second book -->
+  <rect x="120" y="160" width="300" height="60" fill="#0ea5e9" stroke="#0284c7" stroke-width="2"/>
+  <rect x="140" y="170" width="260" height="40" fill="#38bdf8" stroke="#0284c7" stroke-width="1"/>
+  <text x="270" y="195" font-family="Arial" font-size="18" text-anchor="middle" fill="#fff">Book 2</text>
+  
+  <!-- Third book -->
+  <rect x="80" y="220" width="300" height="60" fill="#8b5cf6" stroke="#7c3aed" stroke-width="2"/>
+  <rect x="100" y="230" width="260" height="40" fill="#a78bfa" stroke="#7c3aed" stroke-width="1"/>
+  <text x="230" y="255" font-family="Arial" font-size="18" text-anchor="middle" fill="#fff">Book 3</text>
+  
+  <!-- Fourth book -->
+  <rect x="110" y="280" width="300" height="60" fill="#f59e0b" stroke="#d97706" stroke-width="2"/>
+  <rect x="130" y="290" width="260" height="40" fill="#fbbf24" stroke="#d97706" stroke-width="1"/>
+  <text x="260" y="315" font-family="Arial" font-size="18" text-anchor="middle" fill="#fff">Book 4</text>
+  
+  <text x="250" y="380" font-family="Arial" font-size="16" text-anchor="middle" fill="#333">Book Stack Image</text>
+</svg> 

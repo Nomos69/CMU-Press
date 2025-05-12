@@ -9,9 +9,9 @@ require_once 'config/database.php';
 require_once 'includes/functions.php';
 require_once 'includes/auth.php';
 
-// Check if user is logged in, redirect to login page if not
+// Check if user is logged in, redirect to landing page if not
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: landing.php");
     exit;
 }
 
