@@ -61,6 +61,9 @@ $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'pos';
             <li class="<?php echo $activeTab === 'book_requests' ? 'active' : ''; ?>">
                 <a href="index.php?tab=book_requests"><i class="fas fa-clipboard-list"></i> Book Requests</a>
             </li>
+            <li class="<?php echo $activeTab === 'books' ? 'active' : ''; ?>">
+                <a href="index.php?tab=books"><i class="fas fa-layer-group"></i> Books</a>
+            </li>
             <li class="<?php echo $activeTab === 'settings' ? 'active' : ''; ?>">
                 <a href="index.php?tab=settings"><i class="fas fa-cog"></i> Settings</a>
             </li>
