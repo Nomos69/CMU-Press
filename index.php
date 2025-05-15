@@ -25,7 +25,7 @@ $user_role = $_SESSION['role'];
 $activeTab = isset($_GET['tab']) ? $_GET['tab'] : 'pos';
 
 // Define valid tabs
-$validTabs = ['pos', 'inventory', 'book_requests', 'settings'];
+$validTabs = ['pos', 'inventory', 'book_requests', 'books', 'settings'];
 
 // If invalid tab, default to POS
 if (!in_array($activeTab, $validTabs)) {
@@ -37,6 +37,7 @@ $tabTitles = [
     'pos' => 'Point of Sale',
     'inventory' => 'Inventory Management',
     'book_requests' => 'Book Requests',
+    'books' => 'Books',
     'settings' => 'System Settings'
 ];
 
@@ -72,6 +73,12 @@ switch ($activeTab) {
         // Load models for book requests
         include_once 'models/BookRequest.php';
         include_once 'pages/book_requests.php';
+        break;
+
+    case 'books':
+        // Load Book model (if needed)
+        include_once 'models/Book.php';
+        include_once 'pages/books.php';
         break;
     
     case 'settings':
