@@ -3,59 +3,43 @@
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Include database and book model
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/Book.php';
 
-// Initialize database connection
-$database = new Database();
-$db = $database->getConnection();
-
-// Initialize book object
-$book = new Book($db);
+// Create database connection (procedural)
+$db = null;
+try {
+    $db = (new Database())->getConnection();
+} catch (Exception $e) {
+    http_response_code(503);
+    echo json_encode(["message" => "Database connection failed."]);
+    exit;
+}
 
 // Get keywords from request
 $keywords = isset($_GET["q"]) ? $_GET["q"] : "";
+$keywords = htmlspecialchars(strip_tags($keywords));
+$likeKeywords = "%{$keywords}%";
 
 // Search for books
-$stmt = $book->search($keywords);
+$sql = "SELECT * FROM books WHERE title LIKE :keywords OR author LIKE :keywords OR isbn LIKE :keywords ORDER BY title ASC";
+$stmt = $db->prepare($sql);
+$stmt->bindParam(":keywords", $likeKeywords);
+$stmt->execute();
 $num = $stmt->rowCount();
 
-// Check if any books found
 if($num > 0) {
-    // Books array
     $books_arr = array();
     $books_arr["books"] = array();
-    
-    // Retrieve results
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        extract($row);
-        
-        $book_item = array(
-            "book_id" => $book_id,
-            "title" => $title,
-            "author" => $author,
-            "isbn" => $isbn,
-            "price" => $price,
-            "stock_qty" => $stock_qty,
-            "low_stock_threshold" => $low_stock_threshold,
-            "in_stock" => $stock_qty > 0,
-            "low_stock" => $stock_qty <= $low_stock_threshold && $stock_qty > 0
-        );
-        
-        array_push($books_arr["books"], $book_item);
+        $row["in_stock"] = $row["stock_qty"] > 0;
+        $row["low_stock"] = $row["stock_qty"] <= $row["low_stock_threshold"] && $row["stock_qty"] > 0;
+        array_push($books_arr["books"], $row);
     }
-    
-    // Set response code - 200 OK
     http_response_code(200);
-    
-    // Return JSON response
     echo json_encode($books_arr);
 } else {
-    // Set response code - 404 Not found
     http_response_code(404);
-    
-    // Return no books found message
     echo json_encode(array("message" => "No books found matching your search."));
 }
 ?>

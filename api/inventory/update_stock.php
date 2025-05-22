@@ -6,85 +6,82 @@ header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Include database and required models
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/Book.php';
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
-// Check if required data is present
 if(!empty($data->book_id) && isset($data->quantity) && isset($data->operation)) {
-    // Initialize database connection
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    // Initialize Book object
-    $book = new Book($db);
-    $book->book_id = $data->book_id;
-    
-    // Get book data to check current stock
-    if($book->getById()) {
-        $current_stock = $book->stock_qty;
-        
-        // Perform the requested operation
+    $db = null;
+    try {
+        $db = (new Database())->getConnection();
+    } catch (Exception $e) {
+        http_response_code(503);
+        echo json_encode(["message" => "Database connection failed."]);
+        exit;
+    }
+    $book_id = htmlspecialchars(strip_tags($data->book_id));
+    $quantity = intval($data->quantity);
+    $operation = $data->operation;
+    // Get current stock
+    $stmt = $db->prepare("SELECT stock_qty, title FROM books WHERE book_id = :book_id");
+    $stmt->bindParam(":book_id", $book_id);
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if($row) {
+        $current_stock = $row['stock_qty'];
+        $title = $row['title'];
         $success = false;
         $message = "";
-        
-        switch($data->operation) {
+        $operation_label = '';
+        switch($operation) {
             case 'decrease':
-                $success = $book->updateStock($data->quantity);
-                $operation = "decreased";
+                $stmt2 = $db->prepare("UPDATE books SET stock_qty = stock_qty - :quantity WHERE book_id = :book_id");
+                $stmt2->bindParam(":quantity", $quantity);
+                $stmt2->bindParam(":book_id", $book_id);
+                $success = $stmt2->execute();
+                $operation_label = "decreased";
                 break;
-                
             case 'increase':
-                $success = $book->increaseStock($data->quantity);
-                $operation = "increased";
+                $stmt2 = $db->prepare("UPDATE books SET stock_qty = stock_qty + :quantity WHERE book_id = :book_id");
+                $stmt2->bindParam(":quantity", $quantity);
+                $stmt2->bindParam(":book_id", $book_id);
+                $success = $stmt2->execute();
+                $operation_label = "increased";
                 break;
-                
             default:
                 $message = "Invalid operation. Use 'increase' or 'decrease'.";
                 break;
         }
-        
-        // Get updated book data
-        $book->getById();
-        $new_stock = $book->stock_qty;
-        
+        // Get updated stock
+        $stmt3 = $db->prepare("SELECT stock_qty FROM books WHERE book_id = :book_id");
+        $stmt3->bindParam(":book_id", $book_id);
+        $stmt3->execute();
+        $row3 = $stmt3->fetch(PDO::FETCH_ASSOC);
+        $new_stock = $row3 ? $row3['stock_qty'] : $current_stock;
         if($success) {
-            // Set response code - 200 success
             http_response_code(200);
-            
-            // Return success message with before/after stock values
-            echo json_encode(array(
-                "message" => "Stock {$operation} successfully.",
-                "book_id" => $book->book_id,
-                "title" => $book->title,
+            echo json_encode([
+                "message" => "Stock {$operation_label} successfully.",
+                "book_id" => $book_id,
+                "title" => $title,
                 "previous_stock" => $current_stock,
-                "quantity_changed" => $data->quantity,
+                "quantity_changed" => $quantity,
                 "new_stock" => $new_stock
-            ));
+            ]);
         } else {
-            // Set response code - 503 service unavailable
             http_response_code(503);
-            
-            // Return error message
-            echo json_encode(array(
+            echo json_encode([
                 "message" => $message ?: "Unable to update stock."
-            ));
+            ]);
         }
     } else {
-        // Book not found
         http_response_code(404);
-        
-        // Return error message
-        echo json_encode(array("message" => "Book not found."));
+        echo json_encode(["message" => "Book not found."]);
     }
 } else {
-    // Set response code - 400 bad request
     http_response_code(400);
-    
-    // Return error message
-    echo json_encode(array("message" => "Unable to update stock. Data is incomplete."));
+    echo json_encode(["message" => "Unable to update stock. Data is incomplete."]);
 }
 ?> 

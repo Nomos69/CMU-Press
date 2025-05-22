@@ -6,87 +6,64 @@ header("Access-Control-Allow-Methods: GET");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Include database and required models
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/Book.php';
-include_once '../../includes/logger.php';
 
-// Initialize database connection
-$database = new Database();
-$db = $database->getConnection();
+// Create database connection
+$db = null;
+try {
+    $db = (new Database())->getConnection();
+} catch (Exception $e) {
+    http_response_code(503);
+    echo json_encode(["message" => "Database connection failed."]);
+    exit;
+}
 
-// Check if book_id was provided
 if(isset($_GET['book_id'])) {
-    // Get book by ID
-    $book = new Book($db);
-    $book->book_id = $_GET['book_id'];
-    
-    if($book->getById()) {
-        // Book found, return stock info
+    $book_id = htmlspecialchars(strip_tags($_GET['book_id']));
+    $stmt = $db->prepare("SELECT * FROM books WHERE book_id = :book_id");
+    $stmt->bindParam(":book_id", $book_id);
+    $stmt->execute();
+    if($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         http_response_code(200);
-        echo json_encode(array(
-            "book_id" => $book->book_id,
-            "title" => $book->title,
-            "stock_qty" => $book->stock_qty,
-            "low_stock_threshold" => $book->low_stock_threshold,
-            "status" => $book->stock_qty <= 0 ? "out_of_stock" : 
-                        ($book->stock_qty <= $book->low_stock_threshold ? "low_stock" : "in_stock")
-        ));
-        
-        // Log this check for auditing
-        Logger::logInventoryUpdate(
-            $book->book_id,
-            'checked',
-            0,
-            $book->stock_qty,
-            $book->stock_qty,
-            'API: check_stock'
-        );
+        echo json_encode([
+            "book_id" => $row['book_id'],
+            "title" => $row['title'],
+            "stock_qty" => $row['stock_qty'],
+            "low_stock_threshold" => $row['low_stock_threshold'],
+            "status" => $row['stock_qty'] <= 0 ? "out_of_stock" : ($row['stock_qty'] <= $row['low_stock_threshold'] ? "low_stock" : "in_stock")
+        ]);
     } else {
-        // Book not found
         http_response_code(404);
-        echo json_encode(array("message" => "Book not found."));
+        echo json_encode(["message" => "Book not found."]);
     }
 } else {
     // List all books with low stock or out of stock
-    $book = new Book($db);
-    $low_stock = $book->getLowStock();
-    $low_stock_count = $low_stock->rowCount();
-    
-    // Check if any books found
+    $stmt = $db->prepare("SELECT * FROM books WHERE stock_qty <= low_stock_threshold ORDER BY stock_qty ASC");
+    $stmt->execute();
+    $low_stock_count = $stmt->rowCount();
     if($low_stock_count > 0) {
-        // Books array
-        $books_arr = array();
-        $books_arr["records"] = array();
-        $books_arr["count"] = $low_stock_count;
-        
-        // Retrieve table contents
-        while($row = $low_stock->fetch(PDO::FETCH_ASSOC)) {
-            $book_item = array(
+        $books_arr = ["records" => [], "count" => $low_stock_count];
+        while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $book_item = [
                 "book_id" => $row['book_id'],
                 "title" => $row['title'],
                 "author" => $row['author'],
                 "stock_qty" => $row['stock_qty'],
                 "low_stock_threshold" => $row['low_stock_threshold'],
                 "status" => $row['stock_qty'] <= 0 ? "out_of_stock" : "low_stock"
-            );
-            
-            array_push($books_arr["records"], $book_item);
+            ];
+            $books_arr["records"][] = $book_item;
         }
-        
-        // Set response code - 200 OK
         http_response_code(200);
-        
-        // Show books data in JSON format
         echo json_encode($books_arr);
     } else {
-        // No books found with low stock
         http_response_code(200);
-        echo json_encode(array(
+        echo json_encode([
             "message" => "No books with low stock found.",
             "count" => 0,
-            "records" => array()
-        ));
+            "records" => []
+        ]);
     }
 }
 ?> 

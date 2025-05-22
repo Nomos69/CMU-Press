@@ -10,3 +10,4 @@
 [2025-05-22 09:14:24] INVENTORY: Book #3 decreased by 11. Stock: 100 -> 89 (API: updateStock)
 [2025-05-22 09:14:24] INVENTORY: Book #3 sale-decrease by 11. Stock: 100 -> 89 (Transaction ID: 9344)
 [2025-05-22 09:17:23] INVENTORY: Book #1 sale-decrease by 13. Stock: 10 -> 0 (Transaction ID: 6928)
+[2025-05-22 09:47:59] INVENTORY: Book #1 sale-decrease by 2. Stock: 1 -> 0 (Transaction ID: 2435)

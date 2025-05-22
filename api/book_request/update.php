@@ -6,89 +6,72 @@ header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Include necessary files
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/BookRequest.php';
-include_once '../../models/Book.php';
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
-// Make sure data is not empty
-if(
-    !empty($data->request_id) && 
-    !empty($data->title) && 
-    !empty($data->requested_by) &&
-    !empty($data->status)
-) {
-    // Initialize database connection
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    // Initialize book request object
-    $book_request = new BookRequest($db);
-    
-    // Get the original request data
-    $book_request->request_id = $data->request_id;
-    $original_status = null;
-    
-    if($book_request->getById()) {
-        $original_status = $book_request->status;
+if(!empty($data->request_id) && !empty($data->title) && !empty($data->requested_by) && !empty($data->status)) {
+    $db = null;
+    try {
+        $db = (new Database())->getConnection();
+    } catch (Exception $e) {
+        http_response_code(503);
+        echo json_encode(["message" => "Database connection failed."]);
+        exit;
     }
-    
-    // Set book request properties
-    $book_request->title = $data->title;
-    $book_request->author = !empty($data->author) ? $data->author : "";
-    $book_request->requested_by = $data->requested_by;
-    $book_request->priority = !empty($data->priority) ? $data->priority : "medium";
-    $book_request->quantity = !empty($data->quantity) && $data->quantity > 0 ? $data->quantity : 1;
-    $book_request->status = $data->status;
-    
+    $request_id = htmlspecialchars(strip_tags($data->request_id));
+    $title = htmlspecialchars(strip_tags($data->title));
+    $author = !empty($data->author) ? htmlspecialchars(strip_tags($data->author)) : "";
+    $requested_by = htmlspecialchars(strip_tags($data->requested_by));
+    $priority = !empty($data->priority) ? htmlspecialchars(strip_tags($data->priority)) : "medium";
+    $quantity = !empty($data->quantity) && $data->quantity > 0 ? intval($data->quantity) : 1;
+    $status = htmlspecialchars(strip_tags($data->status));
+    // Get original status
+    $stmt = $db->prepare("SELECT status FROM book_requests WHERE request_id = :request_id");
+    $stmt->bindParam(":request_id", $request_id);
+    $stmt->execute();
+    $original_status = null;
+    if($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $original_status = $row['status'];
+    }
     // Update the book request
-    if($book_request->update()) {
-        $response = array("message" => "Book request updated successfully.");
-        
+    $sql = "UPDATE book_requests SET title = :title, author = :author, requested_by = :requested_by, priority = :priority, quantity = :quantity, status = :status WHERE request_id = :request_id";
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(":title", $title);
+    $stmt->bindParam(":author", $author);
+    $stmt->bindParam(":requested_by", $requested_by);
+    $stmt->bindParam(":priority", $priority);
+    $stmt->bindParam(":quantity", $quantity);
+    $stmt->bindParam(":status", $status);
+    $stmt->bindParam(":request_id", $request_id);
+    if($stmt->execute()) {
+        $response = ["message" => "Book request updated successfully."];
         // If the status is being changed to 'fulfilled', add the book to inventory
-        if($data->status === 'fulfilled' && $original_status !== 'fulfilled') {
-            // Initialize book object
-            $book = new Book($db);
-            
-            // Set book properties
-            $book->title = $book_request->title;
-            $book->author = $book_request->author;
-            $book->isbn = null; // ISBN needs to be set manually later
-            $book->price = 0.00; // Price needs to be set manually later
-            $book->stock_qty = $book_request->quantity;
-            $book->low_stock_threshold = 5; // Default threshold
-            
-            // Create the book in inventory
-            if($book->create()) {
+        if($status === 'fulfilled' && $original_status !== 'fulfilled') {
+            $sql = "INSERT INTO books (title, author, isbn, price, stock_qty, low_stock_threshold, college) VALUES (:title, :author, NULL, 0.00, :quantity, 5, NULL)";
+            $stmt2 = $db->prepare($sql);
+            $stmt2->bindParam(":title", $title);
+            $stmt2->bindParam(":author", $author);
+            $stmt2->bindParam(":quantity", $quantity);
+            if($stmt2->execute()) {
                 $response["book_added"] = true;
-                $response["book_id"] = $book->book_id;
+                $response["book_id"] = $db->lastInsertId();
                 $response["message"] .= " Book has been added to inventory.";
             } else {
                 $response["book_added"] = false;
                 $response["message"] .= " Note: Failed to add book to inventory.";
             }
         }
-        
-        // Set response code - 200 OK
         http_response_code(200);
-        
-        // Return success message
         echo json_encode($response);
     } else {
-        // Set response code - 503 service unavailable
         http_response_code(503);
-        
-        // Return error message
-        echo json_encode(array("message" => "Unable to update book request."));
+        echo json_encode(["message" => "Unable to update book request."]);
     }
 } else {
-    // Set response code - 400 bad request
     http_response_code(400);
-    
-    // Return error message
-    echo json_encode(array("message" => "Unable to update book request. Data is incomplete."));
+    echo json_encode(["message" => "Unable to update book request. Data is incomplete."]);
 }
 ?> 

@@ -6,178 +6,118 @@ header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Include database and required models
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/Transaction.php';
-include_once '../../models/TransactionItem.php';
-include_once '../../models/Book.php';
-include_once '../../includes/logger.php';
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
-// Make sure data is not empty
+// Create database connection
+$db = null;
+try {
+    $db = (new Database())->getConnection();
+} catch (Exception $e) {
+    http_response_code(503);
+    echo json_encode(["message" => "Database connection failed."]);
+    exit;
+}
+
+// Check if data is complete
 if(
-    !empty($data->items) && 
-    !empty($data->payment_method) && 
-    !empty($data->subtotal) && 
-    !empty($data->tax) && 
-    isset($data->discount) && 
-    !empty($data->total) && 
+    !empty($data->items) &&
+    !empty($data->total_amount) &&
     !empty($data->user_id)
-) {
-    // Initialize database connection
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    // Initialize objects
-    $transaction = new Transaction($db);
-    $transaction_item = new TransactionItem($db);
-    $book = new Book($db);
-    
-    // Set transaction properties
-    $transaction->customer_id = !empty($data->customer_id) ? $data->customer_id : null;
-    $transaction->user_id = $data->user_id;
-    $transaction->status = !empty($data->status) ? $data->status : "completed";
-    $transaction->payment_method = $data->payment_method;
-    $transaction->subtotal = $data->subtotal;
-    $transaction->tax = $data->tax;
-    $transaction->discount = $data->discount;
-    $transaction->total = $data->total;
-    
-    // Begin transaction
-    $db->beginTransaction();
-    
-    try {
-        // Create the transaction
-        if($transaction->create()) {
-            // Log transaction creation
-            Logger::logTransaction(
-                $transaction->transaction_id,
-                'created',
-                [
-                    'status' => $transaction->status,
-                    'total' => $transaction->total,
-                    'items_count' => count($data->items)
-                ]
+){
+    // First, validate all items have sufficient stock
+    $insufficient_items = array();
+    foreach($data->items as $item){
+        if(empty($item->book_id) || empty($item->quantity) || empty($item->price)) {
+            http_response_code(400);
+            echo json_encode(["message" => "Unable to create transaction. Item data is incomplete."]);
+            exit;
+        }
+        $book_id = htmlspecialchars(strip_tags($item->book_id));
+        $stmt = $db->prepare("SELECT stock_qty, title FROM books WHERE book_id = :book_id");
+        $stmt->bindParam(":book_id", $book_id);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if(!$row || $row['stock_qty'] < $item->quantity){
+            $insufficient_items[] = array(
+                "book_id" => $item->book_id,
+                "title" => $row ? $row['title'] : '',
+                "requested" => $item->quantity,
+                "available" => $row ? $row['stock_qty'] : 0
             );
-            
-            // Transaction created, now add items
-            $transaction_items_created = true;
-            
-            // Loop through each item
-            foreach($data->items as $item) {
-                // Set transaction item properties
-                $transaction_item->transaction_id = $transaction->transaction_id;
-                $transaction_item->book_id = $item->book_id;
-                $transaction_item->quantity = $item->quantity;
-                $transaction_item->price_per_unit = $item->price;
-                $transaction_item->total_price = $item->price * $item->quantity;
-                
-                // Create transaction item
-                if(!$transaction_item->create()) {
-                    $transaction_items_created = false;
-                    break;
-                }
-                
-                // Update book stock if transaction is completed
-                if($transaction->status === "completed") {
-                    // Create a new Book object for each item to avoid reusing the same object
-                    $book = new Book($db);
-                    $book->book_id = $item->book_id;
-                    
-                    // Get the book data before updating
-                    if($book->getById()) {
-                        // Log this for debugging
-                        error_log("Transaction #{$transaction->transaction_id}: Processing stock update for book #{$item->book_id}, quantity: {$item->quantity}, current stock: {$book->stock_qty}");
-                        
-                        // Direct stock update - This is critical!
-                        if(!$book->updateStock($item->quantity)) {
-                            // Rollback transaction and return error
-                            $db->rollBack();
-                            Logger::logTransaction(
-                                $transaction->transaction_id,
-                                'failed',
-                                ['reason' => "Quantity is Greater than the Stock Quantity for book #{$item->book_id}"]
-                            );
-                            http_response_code(400);
-                            echo json_encode(array("message" => "Quantity is Greater than the Stock Quantity"));
-                            exit;
-                        } else {
-                            // Log successful update
-                            error_log("Transaction #{$transaction->transaction_id}: Successfully updated stock for book #{$item->book_id}");
-                        }
-                    } else {
-                        error_log("Transaction #{$transaction->transaction_id}: Book #{$item->book_id} not found when updating stock");
+        }
+    }
+    if(!empty($insufficient_items)){
+        http_response_code(400);
+        echo json_encode([
+            "message" => "Transaction failed due to insufficient stock for some items.",
+            "insufficient_items" => $insufficient_items
+        ]);
+        exit;
+    }
+    try {
+        $db->beginTransaction();
+        // Insert transaction
+        $sql = "INSERT INTO transactions (user_id, customer_id, total_amount, payment_method, status) VALUES (:user_id, :customer_id, :total_amount, :payment_method, 'completed')";
+        $stmt = $db->prepare($sql);
+        $user_id = htmlspecialchars(strip_tags($data->user_id));
+        $customer_id = isset($data->customer_id) ? htmlspecialchars(strip_tags($data->customer_id)) : null;
+        $total_amount = floatval($data->total_amount);
+        $payment_method = isset($data->payment_method) ? htmlspecialchars(strip_tags($data->payment_method)) : 'cash';
+        $stmt->bindParam(":user_id", $user_id);
+        $stmt->bindParam(":customer_id", $customer_id);
+        $stmt->bindParam(":total_amount", $total_amount);
+        $stmt->bindParam(":payment_method", $payment_method);
+        if($stmt->execute()){
+            $transaction_id = $db->lastInsertId();
+            $items_added = 0;
+            foreach($data->items as $item){
+                $book_id = htmlspecialchars(strip_tags($item->book_id));
+                $quantity = intval($item->quantity);
+                $price = floatval($item->price);
+                // Insert transaction item
+                $sql = "INSERT INTO transaction_items (transaction_id, book_id, quantity, price) VALUES (:transaction_id, :book_id, :quantity, :price)";
+                $stmt2 = $db->prepare($sql);
+                $stmt2->bindParam(":transaction_id", $transaction_id);
+                $stmt2->bindParam(":book_id", $book_id);
+                $stmt2->bindParam(":quantity", $quantity);
+                $stmt2->bindParam(":price", $price);
+                if($stmt2->execute()){
+                    $items_added++;
+                    // Update book stock
+                    $stmt3 = $db->prepare("UPDATE books SET stock_qty = stock_qty - :quantity WHERE book_id = :book_id");
+                    $stmt3->bindParam(":quantity", $quantity);
+                    $stmt3->bindParam(":book_id", $book_id);
+                    if(!$stmt3->execute()) {
+                        throw new Exception("Failed to update stock for book ID: " . $book_id);
                     }
+                } else {
+                    throw new Exception("Failed to create transaction item for book ID: " . $book_id);
                 }
             }
-            
-            // Check if all transaction items were created
-            if($transaction_items_created) {
-                // Commit transaction
+            if($items_added == count($data->items)){
                 $db->commit();
-                
-                // Log successful transaction completion
-                Logger::logTransaction(
-                    $transaction->transaction_id,
-                    'completed',
-                    [
-                        'status' => $transaction->status,
-                        'total' => $transaction->total
-                    ]
-                );
-                
-                // Set response code - 201 created
                 http_response_code(201);
-                
-                // Return success message
-                echo json_encode(array(
+                echo json_encode([
                     "message" => "Transaction was created successfully.",
-                    "transaction_id" => $transaction->transaction_id
-                ));
+                    "transaction_id" => $transaction_id
+                ]);
             } else {
-                // Rollback transaction
-                $db->rollBack();
-                
-                // Log transaction failure
-                Logger::logTransaction(
-                    $transaction->transaction_id,
-                    'failed',
-                    ['reason' => 'Unable to create transaction items']
-                );
-                
-                // Set response code - 503 service unavailable
-                http_response_code(503);
-                
-                // Return error message
-                echo json_encode(array("message" => "Unable to create transaction items."));
+                throw new Exception("Not all items were added to the transaction.");
             }
         } else {
-            // Rollback transaction
-            $db->rollBack();
-            
-            // Set response code - 503 service unavailable
-            http_response_code(503);
-            
-            // Return error message
-            echo json_encode(array("message" => "Unable to create transaction."));
+            throw new Exception("Unable to create transaction.");
         }
     } catch (Exception $e) {
-        // Rollback transaction
         $db->rollBack();
-        
-        // Set response code - 503 service unavailable
         http_response_code(503);
-        
-        // Return error message
-        echo json_encode(array("message" => "Error: " . $e->getMessage()));
+        echo json_encode(["message" => "Transaction failed: " . $e->getMessage()]);
     }
 } else {
-    // Set response code - 400 bad request
     http_response_code(400);
-    
-    // Return error message
-    echo json_encode(array("message" => "Unable to create transaction. Data is incomplete."));
+    echo json_encode(["message" => "Unable to create transaction. Data is incomplete."]);
 }
 ?>

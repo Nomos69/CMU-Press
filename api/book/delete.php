@@ -12,9 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Include database and book model
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/Book.php';
 
 // Initialize response array
 $response = array();
@@ -30,40 +29,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
 // Check if book id is provided
 if($book_id) {
-    // Create database connection
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    // Create book object
-    $book = new Book($db);
-    $book->book_id = $book_id;
-    
-    // Check if book exists
-    if(!$book->getById()) {
-        $response = array(
-            "message" => "Book not found."
-        );
-        http_response_code(404); // Not found
+    // Create database connection (procedural)
+    $db = null;
+    try {
+        $db = (new Database())->getConnection();
+    } catch (Exception $e) {
+        http_response_code(503);
+        echo json_encode(["message" => "Database connection failed."]);
+        exit;
     }
-    // Delete the book from database
-    else if($book->delete()) {
-        // Set response
-        $response = array(
-            "message" => "Book deleted successfully."
-        );
-        http_response_code(200); // OK
+    $book_id = htmlspecialchars(strip_tags($book_id));
+    // Check if book exists
+    $stmt = $db->prepare("SELECT book_id FROM books WHERE book_id = :book_id");
+    $stmt->bindParam(":book_id", $book_id);
+    $stmt->execute();
+    if($stmt->rowCount() == 0) {
+        $response = array("message" => "Book not found.");
+        http_response_code(404); // Not found
     } else {
-        // Set error response
-        $response = array(
-            "message" => "Unable to delete book."
-        );
-        http_response_code(503); // Service unavailable
+        // Delete the book from database
+        $stmt = $db->prepare("DELETE FROM books WHERE book_id = :book_id");
+        $stmt->bindParam(":book_id", $book_id);
+        if($stmt->execute()) {
+            $response = array("message" => "Book deleted successfully.");
+            http_response_code(200); // OK
+        } else {
+            $response = array("message" => "Unable to delete book.");
+            http_response_code(503); // Service unavailable
+        }
     }
 } else {
     // Set error response for missing book id
-    $response = array(
-        "message" => "Unable to delete book. Book ID is required."
-    );
+    $response = array("message" => "Unable to delete book. Book ID is required.");
     http_response_code(400); // Bad request
 }
 

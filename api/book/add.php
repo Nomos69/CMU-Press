@@ -6,9 +6,8 @@ header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Include database and book model
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/Book.php';
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
@@ -23,32 +22,43 @@ if (
     !empty($data->price) &&
     isset($data->stock_qty)
 ) {
-    // Create database connection
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    // Create book object
-    $book = new Book($db);
-    
-    // Set book properties
-    $book->title = $data->title;
-    $book->author = $data->author;
-    $book->isbn = $data->isbn ?? null;
-    $book->price = $data->price;
-    $book->stock_qty = $data->stock_qty;
-    $book->low_stock_threshold = $data->low_stock_threshold ?? 5;
-    $book->college = $data->college ?? null;
-    
-    // Create the book
-    if($book->create()) {
-        // Set response
+    // Create database connection (procedural)
+    $db = null;
+    try {
+        $db = (new Database())->getConnection();
+    } catch (Exception $e) {
+        http_response_code(503);
+        echo json_encode(["message" => "Database connection failed."]);
+        exit;
+    }
+
+    // Sanitize input
+    $title = htmlspecialchars(strip_tags($data->title));
+    $author = htmlspecialchars(strip_tags($data->author));
+    $isbn = isset($data->isbn) ? htmlspecialchars(strip_tags($data->isbn)) : null;
+    $price = htmlspecialchars(strip_tags($data->price));
+    $stock_qty = htmlspecialchars(strip_tags($data->stock_qty));
+    $low_stock_threshold = isset($data->low_stock_threshold) ? htmlspecialchars(strip_tags($data->low_stock_threshold)) : 5;
+    $college = isset($data->college) ? htmlspecialchars(strip_tags($data->college)) : null;
+
+    // Prepare SQL
+    $sql = "INSERT INTO books (title, author, isbn, price, stock_qty, low_stock_threshold, college) VALUES (:title, :author, :isbn, :price, :stock_qty, :low_stock_threshold, :college)";
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(":title", $title);
+    $stmt->bindParam(":author", $author);
+    $stmt->bindParam(":isbn", $isbn);
+    $stmt->bindParam(":price", $price);
+    $stmt->bindParam(":stock_qty", $stock_qty);
+    $stmt->bindParam(":low_stock_threshold", $low_stock_threshold);
+    $stmt->bindParam(":college", $college);
+
+    if ($stmt->execute()) {
         $response = array(
             "message" => "Book added successfully.",
-            "book_id" => $book->book_id
+            "book_id" => $db->lastInsertId()
         );
         http_response_code(201); // Created
     } else {
-        // Set error response
         $response = array(
             "message" => "Unable to add book."
         );

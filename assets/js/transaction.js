@@ -304,6 +304,84 @@ function processCashPayment() {
 }
 
 /**
+ * Validate stock before checkout
+ * @param {Array} items Items to validate
+ * @returns {Promise} Promise that resolves if stock is valid, rejects with invalid items if not
+ */
+function validateStock(items) {
+    return new Promise((resolve, reject) => {
+        console.log('Validating stock for items:', items);
+        
+        const stockChecks = items.map(item => {
+            return fetch(`${API_ROOT_PATH}api/inventory/check_stock.php`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    book_id: item.book_id,
+                    quantity: item.quantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                return {
+                    book_id: item.book_id,
+                    title: item.title,
+                    requested: item.quantity,
+                    available: data.available || 0,
+                    status: data.status
+                };
+            })
+            .catch(error => {
+                console.error('Error checking stock for item:', item, error);
+                // Fall back to the old method if the new API fails
+                return fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(item.book_id)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.books && data.books.length > 0) {
+                            const book = data.books[0];
+                            const available = parseInt(book.stock_qty);
+                            return {
+                                book_id: item.book_id,
+                                title: book.title || item.title,
+                                requested: item.quantity,
+                                available: available,
+                                status: available >= item.quantity
+                            };
+                        } else {
+                            return {
+                                book_id: item.book_id,
+                                title: item.title,
+                                requested: item.quantity,
+                                available: 0,
+                                status: false
+                            };
+                        }
+                    });
+            });
+        });
+        
+        Promise.all(stockChecks)
+            .then(results => {
+                const invalidItems = results.filter(item => !item.status);
+                
+                if (invalidItems.length > 0) {
+                    console.log('Stock validation failed for items:', invalidItems);
+                    reject(invalidItems);
+                } else {
+                    console.log('Stock validation successful for all items');
+                    resolve(true);
+                }
+            })
+            .catch(error => {
+                console.error('Error validating stock:', error);
+                reject([]);
+            });
+    });
+}
+
+/**
  * Process the transaction after payment is confirmed
  */
 function processTransaction() {
@@ -383,64 +461,53 @@ function processTransaction() {
         const apiUrl = `${API_ROOT_PATH}api/transaction/create.php`;
         const simulatedTransactionId = Math.floor(Math.random() * 10000) + 1000;
         
-        // Before sending the transaction, check stock for each book
-        const checkStockPromises = items.map(item => {
-            return fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(item.book_id)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.books && data.books.length > 0) {
-                        const book = data.books[0];
-                        return { book_id: item.book_id, title: book.title, stock_qty: parseInt(book.stock_qty), requested_qty: item.quantity };
+        // First validate stock using the new validateStock function
+        validateStock(items)
+            .then(() => {
+                // Stock is valid, proceed with the transaction
+                fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(transactionData),
+                })
+                .then(async response => {
+                    console.log('API response status:', response.status);
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (err) {
+                        console.warn('Could not parse JSON response:', err);
+                    }
+                    if (response.status === 201 && data && data.transaction_id) {
+                        // Success
+                        completeTransaction(data.transaction_id, items, transactionData);
+                    } else if (response.status === 400 && data && data.message) {
+                        // Show error from backend (e.g., insufficient stock)
+                        showNotification(data.message, 'error');
+                        // Do NOT complete the transaction or use a simulated ID
                     } else {
-                        return { book_id: item.book_id, title: item.title, stock_qty: 0, requested_qty: item.quantity };
+                        // Other errors
+                        showNotification('Transaction failed. Please try again.', 'error');
+                        // Do NOT complete the transaction or use a simulated ID
                     }
                 })
-                .catch(() => ({ book_id: item.book_id, title: item.title, stock_qty: 0, requested_qty: item.quantity }));
-        });
-
-        Promise.all(checkStockPromises).then(stockResults => {
-            const insufficient = stockResults.find(b => b.stock_qty < b.requested_qty);
-            if (insufficient) {
-                showNotification(`Cannot proceed: "${insufficient.title}" only has ${insufficient.stock_qty} in stock.`, 'error');
-                return;
-            }
-
-            // Proceed to send the transaction via API
-            fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(transactionData),
+                .catch(error => {
+                    console.error('API error:', error);
+                    showNotification('Warning: Could not connect to server. Processing transaction offline.', 'warning');
+                    // Fall back to simulated ID only if the server is unreachable
+                    completeTransaction(simulatedTransactionId, items, transactionData);
+                });
             })
-            .then(async response => {
-                console.log('API response status:', response.status);
-                let data = null;
-                try {
-                    data = await response.json();
-                } catch (err) {
-                    console.warn('Could not parse JSON response:', err);
-                }
-                if (response.status === 201 && data && data.transaction_id) {
-                    // Success
-                    completeTransaction(data.transaction_id, items, transactionData);
-                } else if (response.status === 400 && data && data.message) {
-                    // Show error from backend (e.g., insufficient stock)
-                    showNotification(data.message, 'error');
-                    // Do NOT complete the transaction or use a simulated ID
-                } else {
-                    // Other errors
-                    showNotification('Transaction failed. Please try again.', 'error');
-                    // Do NOT complete the transaction or use a simulated ID
-                }
-            })
-            .catch(error => {
-                console.error('API error:', error);
-                showNotification('Warning: Could not connect to server. Processing transaction offline.', 'warning');
-                // Fall back to simulated ID only if the server is unreachable
-                completeTransaction(simulatedTransactionId, items, transactionData);
+            .catch(invalidItems => {
+                // Show detailed error message for invalid stock
+                let errorMessage = 'Cannot complete checkout due to insufficient stock:<br>';
+                invalidItems.forEach(item => {
+                    errorMessage += `- ${item.title}: Requested ${item.requested}, Available ${item.available}<br>`;
+                });
+                showNotification(errorMessage, 'error', 10000);
             });
-        });
     } catch (error) {
         console.error('Transaction processing error:', error);
         showNotification('Error processing transaction: ' + error.message, 'error');

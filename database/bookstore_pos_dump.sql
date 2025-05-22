@@ -42,7 +42,7 @@ CREATE TABLE `books` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ------------------------------------------------------
--- Table structure for table `customers` (without loyalty card)
+-- Table structure for table `customers` 
 -- ------------------------------------------------------
 CREATE TABLE `customers` (
   `customer_id` int(11) NOT NULL AUTO_INCREMENT,

@@ -7,184 +7,105 @@ header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Include database and required models
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/Transaction.php';
-include_once '../../models/TransactionItem.php';
-include_once '../../models/Book.php';
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
-// Make sure data is not empty
-if(
-    !empty($data->transaction_id) && 
-    !empty($data->status)
-) {
-    // Initialize database connection
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    // Begin transaction
-    $db->beginTransaction();
-    
+if(!empty($data->transaction_id) && !empty($data->status)) {
+    $db = null;
     try {
-        // Initialize transaction object
-        $transaction = new Transaction($db);
-        $transaction->transaction_id = $data->transaction_id;
-        
+        $db = (new Database())->getConnection();
+    } catch (Exception $e) {
+        http_response_code(503);
+        echo json_encode(["message" => "Database connection failed."]);
+        exit;
+    }
+    $db->beginTransaction();
+    try {
+        $transaction_id = htmlspecialchars(strip_tags($data->transaction_id));
+        $newStatus = htmlspecialchars(strip_tags($data->status));
         // Get current transaction data
-        if($transaction->readOne()) {
-            // Check for status change
-            $oldStatus = $transaction->status;
-            $newStatus = $data->status;
-            
-            // Only proceed if status is actually changing
+        $stmt = $db->prepare("SELECT status FROM transactions WHERE transaction_id = :transaction_id");
+        $stmt->bindParam(":transaction_id", $transaction_id);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if($row) {
+            $oldStatus = $row['status'];
             if($oldStatus !== $newStatus) {
                 // Update transaction status
-                $transaction->status = $newStatus;
-                
-                if($transaction->updateStatus()) {
-                    // Handle inventory updates based on status change
-                    $transaction_item = new TransactionItem($db);
-                    $transaction_item->transaction_id = $transaction->transaction_id;
-                    
+                $stmt2 = $db->prepare("UPDATE transactions SET status = :status WHERE transaction_id = :transaction_id");
+                $stmt2->bindParam(":status", $newStatus);
+                $stmt2->bindParam(":transaction_id", $transaction_id);
+                if($stmt2->execute()) {
                     // Get all items for this transaction
-                    $transaction_items = $transaction_item->getByTransaction();
+                    $stmt3 = $db->prepare("SELECT book_id, quantity FROM transaction_items WHERE transaction_id = :transaction_id");
+                    $stmt3->bindParam(":transaction_id", $transaction_id);
+                    $stmt3->execute();
                     $items_processed = true;
-                    
-                    // Process inventory changes based on status transitions
                     if($oldStatus !== "completed" && $newStatus === "completed") {
-                        // Status changed TO completed - decrease inventory
-                        error_log("Transaction #{$transaction->transaction_id} status changed from {$oldStatus} to {$newStatus} - decreasing inventory");
-                        
-                        while($row = $transaction_items->fetch(PDO::FETCH_ASSOC)) {
-                            $book = new Book($db);
-                            $book->book_id = $row['book_id'];
-                            
-                            if($book->getById()) {
-                                // Log before updating
-                                error_log("Book #{$row['book_id']} current stock: {$book->stock_qty}, will decrease by {$row['quantity']}");
-                                
-                                // Decrease stock by quantity sold - DIRECT UPDATE FOR RELIABILITY
-                                if(!$book->updateStock($row['quantity'])) {
-                                    $items_processed = false;
-                                    error_log("Failed to update stock for book ID: " . $row['book_id']);
-                                    break;
-                                }
-                                
-                                // Get updated stock
-                                $book->getById();
-                                error_log("Book #{$row['book_id']} new stock after decrease: {$book->stock_qty}");
-                            } else {
+                        // Decrease inventory
+                        while($row3 = $stmt3->fetch(PDO::FETCH_ASSOC)) {
+                            $stmt4 = $db->prepare("UPDATE books SET stock_qty = stock_qty - :quantity WHERE book_id = :book_id");
+                            $stmt4->bindParam(":quantity", $row3['quantity']);
+                            $stmt4->bindParam(":book_id", $row3['book_id']);
+                            if(!$stmt4->execute()) {
                                 $items_processed = false;
-                                error_log("Book not found with ID: " . $row['book_id']);
                                 break;
                             }
                         }
-                    } 
-                    else if($oldStatus === "completed" && $newStatus !== "completed") {
-                        // Status changed FROM completed - increase inventory (return items to stock)
-                        error_log("Transaction #{$transaction->transaction_id} status changed from {$oldStatus} to {$newStatus} - returning inventory");
-                        
-                        while($row = $transaction_items->fetch(PDO::FETCH_ASSOC)) {
-                            $book = new Book($db);
-                            $book->book_id = $row['book_id'];
-                            
-                            if($book->getById()) {
-                                // Log before updating
-                                error_log("Book #{$row['book_id']} current stock: {$book->stock_qty}, will increase by {$row['quantity']}");
-                                
-                                // Add the quantity back to stock using the increaseStock method - DIRECT UPDATE FOR RELIABILITY
-                                if(!$book->increaseStock($row['quantity'])) {
-                                    $items_processed = false;
-                                    error_log("Failed to restore stock for book ID: " . $row['book_id']);
-                                    break;
-                                }
-                                
-                                // Get updated stock
-                                $book->getById();
-                                error_log("Book #{$row['book_id']} new stock after increase: {$book->stock_qty}");
-                            } else {
+                    } else if($oldStatus === "completed" && $newStatus !== "completed") {
+                        // Return inventory
+                        while($row3 = $stmt3->fetch(PDO::FETCH_ASSOC)) {
+                            $stmt4 = $db->prepare("UPDATE books SET stock_qty = stock_qty + :quantity WHERE book_id = :book_id");
+                            $stmt4->bindParam(":quantity", $row3['quantity']);
+                            $stmt4->bindParam(":book_id", $row3['book_id']);
+                            if(!$stmt4->execute()) {
                                 $items_processed = false;
-                                error_log("Book not found with ID: " . $row['book_id']);
                                 break;
                             }
                         }
                     }
-                    
                     if($items_processed) {
-                        // All items processed, commit transaction
                         $db->commit();
-                        
-                        // Set response code - 200 success
                         http_response_code(200);
-                        
-                        // Return success message
-                        echo json_encode(array(
+                        echo json_encode([
                             "message" => "Transaction status updated successfully.",
-                            "transaction_id" => $transaction->transaction_id,
-                            "status" => $transaction->status
-                        ));
+                            "transaction_id" => $transaction_id,
+                            "status" => $newStatus
+                        ]);
                     } else {
-                        // Problem processing items, rollback
                         $db->rollBack();
-                        
-                        // Set response code - 503 service unavailable
                         http_response_code(503);
-                        
-                        // Return error message
-                        echo json_encode(array("message" => "Error updating inventory."));
+                        echo json_encode(["message" => "Error updating inventory."]);
                     }
                 } else {
-                    // Rollback transaction
                     $db->rollBack();
-                    
-                    // Set response code - 503 service unavailable
                     http_response_code(503);
-                    
-                    // Return error message
-                    echo json_encode(array("message" => "Unable to update transaction status."));
+                    echo json_encode(["message" => "Unable to update transaction status."]);
                 }
             } else {
-                // Status not changing, just return success
                 $db->commit();
-                
-                // Set response code - 200 success
                 http_response_code(200);
-                
-                // Return success message
-                echo json_encode(array(
+                echo json_encode([
                     "message" => "No change in transaction status.",
-                    "transaction_id" => $transaction->transaction_id,
-                    "status" => $transaction->status
-                ));
+                    "transaction_id" => $transaction_id,
+                    "status" => $oldStatus
+                ]);
             }
         } else {
-            // Transaction not found
             $db->rollBack();
-            
-            // Set response code - 404 not found
             http_response_code(404);
-            
-            // Return error message
-            echo json_encode(array("message" => "Transaction not found."));
+            echo json_encode(["message" => "Transaction not found."]);
         }
     } catch (Exception $e) {
-        // Rollback transaction
         $db->rollBack();
-        
-        // Set response code - 503 service unavailable
         http_response_code(503);
-        
-        // Return error message
-        echo json_encode(array("message" => "Error: " . $e->getMessage()));
+        echo json_encode(["message" => "Error: " . $e->getMessage()]);
     }
 } else {
-    // Set response code - 400 bad request
     http_response_code(400);
-    
-    // Return error message
-    echo json_encode(array("message" => "Unable to update transaction status. Data is incomplete."));
+    echo json_encode(["message" => "Unable to update transaction status. Data is incomplete."]);
 }
 ?> 

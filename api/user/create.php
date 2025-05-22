@@ -6,76 +6,63 @@ header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Include database and user model
+// Include database connection only
 include_once '../../config/database.php';
-include_once '../../models/User.php';
 
 // Get database connection
-$database = new Database();
-$db = $database->getConnection();
-
-// Initialize user object
-$user = new User($db);
+$db = null;
+try {
+    $db = (new Database())->getConnection();
+} catch (Exception $e) {
+    http_response_code(503);
+    echo json_encode(["success" => false, "message" => "Database connection failed."]);
+    exit;
+}
 
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
-// Make sure data is not empty
 if(
     !empty($data->name) &&
     !empty($data->username) &&
     !empty($data->password) &&
     !empty($data->role)
 ){
-    // Set user property values
-    $user->name = $data->name;
-    $user->username = $data->username;
-    $user->password = $data->password;
-    $user->role = $data->role;
-    
-    // Create the user
-    if($user->create()){
-        // Set response code - 201 created
+    $name = htmlspecialchars(strip_tags($data->name));
+    $username = htmlspecialchars(strip_tags($data->username));
+    $password = htmlspecialchars(strip_tags($data->password));
+    $role = htmlspecialchars(strip_tags($data->role));
+    // Check if username already exists
+    $stmt = $db->prepare("SELECT user_id FROM users WHERE username = :username");
+    $stmt->bindParam(":username", $username);
+    $stmt->execute();
+    if($stmt->rowCount() > 0) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Username already exists."]);
+        exit;
+    }
+    // Insert user
+    $stmt = $db->prepare("INSERT INTO users (name, username, password, role) VALUES (:name, :username, :password, :role)");
+    $stmt->bindParam(":name", $name);
+    $stmt->bindParam(":username", $username);
+    $stmt->bindParam(":password", $password);
+    $stmt->bindParam(":role", $role);
+    if($stmt->execute()){
         http_response_code(201);
-        
-        // Tell the user
-        echo json_encode(array(
+        echo json_encode([
             "success" => true,
             "message" => "User was created successfully.",
-            "user_id" => $user->user_id
-        ));
+            "user_id" => $db->lastInsertId()
+        ]);
+    } else {
+        http_response_code(503);
+        echo json_encode(["success" => false, "message" => "Unable to create user."]);
     }
-    else{
-        // If username already exists
-        if($user->usernameExists()){
-            // Set response code - 400 bad request
-            http_response_code(400);
-            
-            // Tell the user
-            echo json_encode(array(
-                "success" => false,
-                "message" => "Username already exists."
-            ));
-        } else {
-            // Set response code - 503 service unavailable
-            http_response_code(503);
-            
-            // Tell the user
-            echo json_encode(array(
-                "success" => false,
-                "message" => "Unable to create user."
-            ));
-        }
-    }
-}
-else{
-    // Set response code - 400 bad request
+} else {
     http_response_code(400);
-    
-    // Tell the user
-    echo json_encode(array(
+    echo json_encode([
         "success" => false,
         "message" => "Unable to create user. Data is incomplete."
-    ));
+    ]);
 }
 ?>
