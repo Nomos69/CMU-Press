@@ -1,22 +1,9 @@
 <?php
-// Headers
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: DELETE, POST, OPTIONS");
-header("Access-Control-Max-Age: 3600");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+// Include API utilities
+include_once dirname(__FILE__) . '/../../includes/api_utilities.php';
 
-// Handle preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
-// Include database connection only
-include_once '../../config/database.php';
-
-// Initialize response array
-$response = array();
+// Set headers and handle CORS
+set_api_headers();
 
 // Get book id - check both GET and POST methods
 $book_id = null;
@@ -29,41 +16,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
 
 // Check if book id is provided
 if($book_id) {
-    // Create database connection (procedural)
-    $db = null;
-    try {
-        $db = (new Database())->getConnection();
-    } catch (Exception $e) {
-        http_response_code(503);
-        echo json_encode(["message" => "Database connection failed."]);
-        exit;
-    }
-    $book_id = htmlspecialchars(strip_tags($book_id));
+    // Create database connection
+    $db = get_db_connection();
+
+    $book_id = sanitize_input($book_id);
+
     // Check if book exists
     $stmt = $db->prepare("SELECT book_id FROM books WHERE book_id = :book_id");
     $stmt->bindParam(":book_id", $book_id);
     $stmt->execute();
+
     if($stmt->rowCount() == 0) {
-        $response = array("message" => "Book not found.");
-        http_response_code(404); // Not found
+        send_json_response(404, ["message" => "Book not found."]); // Not found
     } else {
         // Delete the book from database
         $stmt = $db->prepare("DELETE FROM books WHERE book_id = :book_id");
         $stmt->bindParam(":book_id", $book_id);
+
         if($stmt->execute()) {
-            $response = array("message" => "Book deleted successfully.");
-            http_response_code(200); // OK
+            send_json_response(200, ["message" => "Book deleted successfully."]); // OK
         } else {
-            $response = array("message" => "Unable to delete book.");
-            http_response_code(503); // Service unavailable
+            send_json_response(503, ["message" => "Unable to delete book."]); // Service unavailable
         }
     }
 } else {
     // Set error response for missing book id
-    $response = array("message" => "Unable to delete book. Book ID is required.");
-    http_response_code(400); // Bad request
+    send_json_response(400, ["message" => "Unable to delete book. Book ID is required."]); // Bad request
 }
 
-// Return response as JSON
-echo json_encode($response);
+// No need for manual echo and exit here as send_json_response handles it
 ?> 
