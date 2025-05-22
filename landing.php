@@ -39,7 +39,7 @@
             <!-- Book 1 -->
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book5.jpg" alt="Data Structure and Algorithm in JAVA" onerror="this.src='assets/img/books/placeholder.jpg'">
+                    <img src="assets/img/books/book1.jpg" alt="Data Structure and Algorithm in JAVA" onerror="this.src='assets/img/books/placeholder.jpg'">
                 </div>
                 <div class="book-details">
                     <h3>Data Structure and Algorithm in JAVA</h3>
@@ -93,7 +93,7 @@
             <!-- Additional books here - second row -->
             <div class="book-card">
                 <div class="book-image">
-                    <img src="assets/img/books/book1.jpg" alt="Mein Kampf" onerror="this.src='assets/img/books/placeholder.jpg'">
+                    <img src="assets/img/books/book5.jpg" alt="Mein Kampf" >
                 </div>
                 <div class="book-details">
                     <h3>Mein Kampf</h3>

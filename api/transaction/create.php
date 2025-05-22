@@ -93,8 +93,16 @@ if(
                         
                         // Direct stock update - This is critical!
                         if(!$book->updateStock($item->quantity)) {
-                            // If the update fails, log the error but continue processing
-                            error_log("Transaction #{$transaction->transaction_id}: Failed to update stock for book #{$item->book_id}");
+                            // Rollback transaction and return error
+                            $db->rollBack();
+                            Logger::logTransaction(
+                                $transaction->transaction_id,
+                                'failed',
+                                ['reason' => "Quantity is Greater than the Stock Quantity for book #{$item->book_id}"]
+                            );
+                            http_response_code(400);
+                            echo json_encode(array("message" => "Quantity is Greater than the Stock Quantity"));
+                            exit;
                         } else {
                             // Log successful update
                             error_log("Transaction #{$transaction->transaction_id}: Successfully updated stock for book #{$item->book_id}");

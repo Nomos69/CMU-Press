@@ -161,21 +161,35 @@ function addUser() {
         password: password,
         role: role
     };
-    
-    // Show loading indicator
+      // Show loading indicator
     showNotification('Creating user...', 'info');
     
-    // In a real application, this would make an API call to create the user
-    // For this demo, we'll simulate success after a delay
-    setTimeout(() => {
-        closeModal();
-        showNotification('User created successfully', 'success');
-        
-        // Reload the page to show the new user
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
-    }, 1000);
+    // Make API call to create the user
+    fetch('api/user/create.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeModal();
+            showNotification('User created successfully', 'success');
+            
+            // Reload the page to show the new user
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to create user', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred while creating the user', 'error');
+    });
 }
 
 /**

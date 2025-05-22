@@ -235,10 +235,10 @@ class Book {
         
         // Prevent stock from going negative
         if($current_stock < $quantity) {
-            // If there's not enough stock, set to 0
-            $new_stock = 0;
-            error_log("Warning: Book ID {$this->book_id} stock reduced to 0 (tried to remove $quantity from $current_stock)");
-            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Warning: Book ID {$this->book_id} stock reduced to 0 (tried to remove $quantity from $current_stock)\n", FILE_APPEND);
+            // Not enough stock, do not update
+            error_log("Error: Book ID {$this->book_id} not enough stock to remove $quantity from $current_stock");
+            file_put_contents($logFile, date('[Y-m-d H:i:s]') . " ERROR: Not enough stock to remove $quantity from $current_stock for Book ID {$this->book_id}\n", FILE_APPEND);
+            return false;
         } else {
             $new_stock = $current_stock - $quantity;
             file_put_contents($logFile, date('[Y-m-d H:i:s]') . " Calculated new stock: {$new_stock}\n", FILE_APPEND);

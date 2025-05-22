@@ -38,7 +38,42 @@ if ($isAdmin) {
 // Process password change
 $passwordChanged = false;
 $passwordError = '';
+$userCreated = false;
+$userError = '';
 
+// Handle user creation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_user'])) {
+    $userName = $_POST['user_name'] ?? '';
+    $userUsername = $_POST['user_username'] ?? '';
+    $userPassword = $_POST['user_password'] ?? '';
+    $userConfirmPassword = $_POST['user_confirm_password'] ?? '';
+    $userRole = $_POST['user_role'] ?? '';
+    
+    if (empty($userName) || empty($userUsername) || empty($userPassword) || empty($userConfirmPassword) || empty($userRole)) {
+        $userError = 'All user fields are required';
+    } else if ($userPassword !== $userConfirmPassword) {
+        $userError = 'Passwords do not match';
+    } else {
+        // Create new user
+        $newUser = new User($db);
+        $newUser->name = $userName;
+        $newUser->username = $userUsername;
+        $newUser->password = $userPassword;
+        $newUser->role = $userRole;
+        
+        if ($newUser->create()) {
+            $userCreated = true;
+        } else {
+            if ($newUser->usernameExists()) {
+                $userError = 'Username already exists';
+            } else {
+                $userError = 'Failed to create user';
+            }
+        }
+    }
+}
+
+// Process password change
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     $currentPassword = $_POST['current_password'] ?? '';
     $newPassword = $_POST['new_password'] ?? '';
@@ -129,13 +164,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 </div>
             </div>
             
-            <?php if ($isAdmin): ?>
-            <div class="card">
+            <?php if ($isAdmin): ?>            <div class="card">
                 <div class="card-header">
                     <h2>User Management</h2>
                     <button id="add-user-btn" class="btn-primary"><i class="fas fa-plus"></i> Add User</button>
                 </div>
                 <div class="card-body">
+                    <?php if ($userCreated): ?>
+                        <div class="alert alert-success">User was created successfully!</div>
+                    <?php endif; ?>
+                    
+                    <?php if ($userError): ?>
+                        <div class="alert alert-danger"><?php echo $userError; ?></div>
+                    <?php endif; ?>
+                    
                     <div class="users-table-wrapper">
                         <table class="users-table">
                             <thead>
@@ -196,32 +238,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
 
 <!-- User Add/Edit Modal Template -->
 <template id="user-template">
-    <div class="user-form">
+    <form method="post" action="" class="user-form">
         <div class="form-group">
-            <label for="user-name">Full Name*</label>
-            <input type="text" id="user-name" placeholder="Enter full name" required>
+            <label for="user_name">Full Name*</label>
+            <input type="text" id="user_name" name="user_name" placeholder="Enter full name" required>
         </div>
         <div class="form-group">
-            <label for="user-username">Username*</label>
-            <input type="text" id="user-username" placeholder="Enter username" required>
+            <label for="user_username">Username*</label>
+            <input type="text" id="user_username" name="user_username" placeholder="Enter username" required>
         </div>
         <div class="form-group password-field">
-            <label for="user-password">Password*</label>
-            <input type="password" id="user-password" placeholder="Enter password" required>
+            <label for="user_password">Password*</label>
+            <input type="password" id="user_password" name="user_password" placeholder="Enter password" required>
         </div>
         <div class="form-group password-field">
-            <label for="user-confirm-password">Confirm Password*</label>
-            <input type="password" id="user-confirm-password" placeholder="Confirm password" required>
+            <label for="user_confirm_password">Confirm Password*</label>
+            <input type="password" id="user_confirm_password" name="user_confirm_password" placeholder="Confirm password" required>
         </div>
         <div class="form-group">
-            <label for="user-role">Role*</label>
-            <select id="user-role" required>
+            <label for="user_role">Role*</label>
+            <select id="user_role" name="user_role" required>
                 <option value="staff">Staff</option>
                 <option value="admin">Admin</option>
             </select>
         </div>
         <p class="form-note">* Required fields</p>
-    </div>
+        <button type="submit" name="create_user" class="btn-primary">Create User</button>
+    </form>
 </template>
 
 <script src="assets/js/settings.js"></script>

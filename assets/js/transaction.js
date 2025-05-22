@@ -365,7 +365,7 @@ function processTransaction() {
         const cashAmount = window.cashAmount || total;
         const change = window.change || 0;
         
-        // Transaction data object
+        // Prepare transaction data and API URL before stock check
         const transactionData = {
             customer_id: customerId,
             customer_name: customerName,
@@ -380,60 +380,66 @@ function processTransaction() {
             change: change,
             status: 'completed'
         };
-        
-        console.log('Transaction data:', transactionData);
-        
-        // Show loading notification
-        showNotification('Processing transaction...', 'info');
-        
-        // For demonstration, use a simulated transaction ID
+        const apiUrl = `${API_ROOT_PATH}api/transaction/create.php`;
         const simulatedTransactionId = Math.floor(Math.random() * 10000) + 1000;
         
-        // Get the API URL with the correct path
-        const apiUrl = `${API_ROOT_PATH}api/transaction/create.php`;
-        console.log('Sending transaction to API:', apiUrl);
-        
-        // Try to save the transaction via API
-        fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(transactionData),
-        })
-        .then(response => {
-            console.log('API response status:', response.status);
-            
-            if (response.ok) {
-                return response.json().catch(err => {
+        // Before sending the transaction, check stock for each book
+        const checkStockPromises = items.map(item => {
+            return fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(item.book_id)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.books && data.books.length > 0) {
+                        const book = data.books[0];
+                        return { book_id: item.book_id, title: book.title, stock_qty: parseInt(book.stock_qty), requested_qty: item.quantity };
+                    } else {
+                        return { book_id: item.book_id, title: item.title, stock_qty: 0, requested_qty: item.quantity };
+                    }
+                })
+                .catch(() => ({ book_id: item.book_id, title: item.title, stock_qty: 0, requested_qty: item.quantity }));
+        });
+
+        Promise.all(checkStockPromises).then(stockResults => {
+            const insufficient = stockResults.find(b => b.stock_qty < b.requested_qty);
+            if (insufficient) {
+                showNotification(`Cannot proceed: "${insufficient.title}" only has ${insufficient.stock_qty} in stock.`, 'error');
+                return;
+            }
+
+            // Proceed to send the transaction via API
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(transactionData),
+            })
+            .then(async response => {
+                console.log('API response status:', response.status);
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (err) {
                     console.warn('Could not parse JSON response:', err);
-                    return null;
-                });
-            } else {
-                console.error('API error response:', response.status);
-                throw new Error('Server error: ' + response.status);
-            }
-        })
-        .then(data => {
-            console.log('Transaction API response:', data);
-            
-            if (data && data.transaction_id) {
-                // Complete with the returned transaction ID
-                completeTransaction(data.transaction_id, items, transactionData);
-            } else {
-                console.log('Using simulated transaction ID:', simulatedTransactionId);
-                // Fall back to simulated ID
+                }
+                if (response.status === 201 && data && data.transaction_id) {
+                    // Success
+                    completeTransaction(data.transaction_id, items, transactionData);
+                } else if (response.status === 400 && data && data.message) {
+                    // Show error from backend (e.g., insufficient stock)
+                    showNotification(data.message, 'error');
+                    // Do NOT complete the transaction or use a simulated ID
+                } else {
+                    // Other errors
+                    showNotification('Transaction failed. Please try again.', 'error');
+                    // Do NOT complete the transaction or use a simulated ID
+                }
+            })
+            .catch(error => {
+                console.error('API error:', error);
+                showNotification('Warning: Could not connect to server. Processing transaction offline.', 'warning');
+                // Fall back to simulated ID only if the server is unreachable
                 completeTransaction(simulatedTransactionId, items, transactionData);
-            }
-        })
-        .catch(error => {
-            console.error('API error:', error);
-            
-            // Show error notification but still complete the transaction offline
-            showNotification('Warning: Could not connect to server. Processing transaction offline.', 'warning');
-            
-            // Fall back to simulated ID
-            completeTransaction(simulatedTransactionId, items, transactionData);
+            });
         });
     } catch (error) {
         console.error('Transaction processing error:', error);
@@ -726,78 +732,105 @@ function searchCustomer(searchTerm) {
  */
 function addTransactionItem(item) {
     console.log("Adding transaction item:", item);
-    
     try {
         const transactionItems = document.getElementById('transaction-items');
-        
         if (!transactionItems) {
             console.error("Transaction items container not found");
             return;
         }
-        
         // Check if item already exists
         const existingRows = transactionItems.querySelectorAll('tr');
         for (let i = 0; i < existingRows.length; i++) {
             const row = existingRows[i];
             const bookId = row.getAttribute('data-book-id');
-            
             if (bookId === item.book_id.toString()) {
-                // Update quantity instead of adding new row
-                const quantityElement = row.querySelector('.qty-value');
-                const currentQuantity = parseInt(quantityElement.textContent);
-                const newQuantity = currentQuantity + 1;
-                
-                quantityElement.textContent = newQuantity;
-                
-                // Update total
-                const totalElement = row.querySelector('td:nth-child(5)');
-                const newTotal = item.price * newQuantity;
-                totalElement.textContent = formatCurrency(newTotal);
-                
-                updateTransactionSummary();
+                // Check stock before increasing quantity
+                fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(item.book_id)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        let stock_qty = 0;
+                        if (data && data.books && data.books.length > 0) {
+                            stock_qty = parseInt(data.books[0].stock_qty);
+                        }
+                        const quantityElement = row.querySelector('.qty-value');
+                        const currentQuantity = parseInt(quantityElement.textContent);
+                        if (currentQuantity + 1 > stock_qty) {
+                            showNotification(`Cannot add more. Only ${stock_qty} in stock.`, 'error');
+                            return;
+                        }
+                        const newQuantity = currentQuantity + 1;
+                        quantityElement.textContent = newQuantity;
+                        // Update total
+                        const totalElement = row.querySelector('td:nth-child(5)');
+                        const newTotal = item.price * newQuantity;
+                        totalElement.textContent = formatCurrency(newTotal);
+                        updateTransactionSummary();
+                    });
                 return;
             }
         }
-        
-        // Create new row
-        const row = document.createElement('tr');
-        row.setAttribute('data-book-id', item.book_id);
-        
-        row.innerHTML = `
-            <td>${item.title}</td>
-            <td>${item.author}</td>
-            <td>${formatCurrency(item.price)}</td>
-            <td>
-                <button class="qty-btn qty-minus">-</button>
-                <span class="qty-value">1</span>
-                <button class="qty-btn qty-plus">+</button>
-            </td>
-            <td>${formatCurrency(item.price)}</td>
-            <td>
-                <button class="remove-item-btn"><i class="fas fa-times"></i></button>
-            </td>
-        `;
-        
-        // Add event listeners to buttons
-        const minusBtn = row.querySelector('.qty-minus');
-        const plusBtn = row.querySelector('.qty-plus');
-        const removeBtn = row.querySelector('.remove-item-btn');
-        
-        minusBtn.addEventListener('click', function() {
-            updateItemQuantity(row, -1);
-        });
-        
-        plusBtn.addEventListener('click', function() {
-            updateItemQuantity(row, 1);
-        });
-        
-        removeBtn.addEventListener('click', function() {
-            row.remove();
-            updateTransactionSummary();
-        });
-        
-        transactionItems.appendChild(row);
-        console.log("Added row to transaction items");
+        // Check stock before adding new row
+        fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(item.book_id)}`)
+            .then(response => response.json())
+            .then(data => {
+                let stock_qty = 0;
+                if (data && data.books && data.books.length > 0) {
+                    stock_qty = parseInt(data.books[0].stock_qty);
+                }
+                if (stock_qty < 1) {
+                    showNotification(`Cannot add. Only ${stock_qty} in stock.`, 'error');
+                    return;
+                }
+                // Create new row
+                const row = document.createElement('tr');
+                row.setAttribute('data-book-id', item.book_id);
+                row.innerHTML = `
+                    <td>${item.title}</td>
+                    <td>${item.author}</td>
+                    <td>${formatCurrency(item.price)}</td>
+                    <td>
+                        <button class="qty-btn qty-minus">-</button>
+                        <span class="qty-value">1</span>
+                        <button class="qty-btn qty-plus">+</button>
+                    </td>
+                    <td>${formatCurrency(item.price)}</td>
+                    <td>
+                        <button class="remove-item-btn"><i class="fas fa-times"></i></button>
+                    </td>
+                `;
+                // Add event listeners to buttons
+                const minusBtn = row.querySelector('.qty-minus');
+                const plusBtn = row.querySelector('.qty-plus');
+                const removeBtn = row.querySelector('.remove-item-btn');
+                minusBtn.addEventListener('click', function() {
+                    updateItemQuantity(row, -1);
+                });
+                plusBtn.addEventListener('click', function() {
+                    // Check stock before increasing
+                    fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(item.book_id)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            let stock_qty = 0;
+                            if (data && data.books && data.books.length > 0) {
+                                stock_qty = parseInt(data.books[0].stock_qty);
+                            }
+                            const quantityElement = row.querySelector('.qty-value');
+                            const currentQuantity = parseInt(quantityElement.textContent);
+                            if (currentQuantity + 1 > stock_qty) {
+                                showNotification(`Cannot add more. Only ${stock_qty} in stock.`, 'error');
+                                return;
+                            }
+                            updateItemQuantity(row, 1);
+                        });
+                });
+                removeBtn.addEventListener('click', function() {
+                    row.remove();
+                    updateTransactionSummary();
+                });
+                transactionItems.appendChild(row);
+                console.log("Added row to transaction items");
+                updateTransactionSummary();
+            });
     } catch (error) {
         console.error("Error in addTransactionItem:", error);
     }
@@ -812,20 +845,30 @@ function updateItemQuantity(row, change) {
     const quantityElement = row.querySelector('.qty-value');
     const currentQuantity = parseInt(quantityElement.textContent);
     let newQuantity = currentQuantity + change;
-    
     // Ensure quantity is at least 1
     if (newQuantity < 1) newQuantity = 1;
-    
-    quantityElement.textContent = newQuantity;
-    
-    // Update total
-    const priceElement = row.querySelector('td:nth-child(3)');
-    const price = parseFloat(priceElement.textContent.replace('₱', ''));
-    const totalElement = row.querySelector('td:nth-child(5)');
-    const newTotal = price * newQuantity;
-    totalElement.textContent = formatCurrency(newTotal);
-    
-    updateTransactionSummary();
+    // Check stock before updating
+    const bookId = row.getAttribute('data-book-id');
+    fetch(`${API_ROOT_PATH}api/book/search.php?q=${encodeURIComponent(bookId)}`)
+        .then(response => response.json())
+        .then(data => {
+            let stock_qty = 0;
+            if (data && data.books && data.books.length > 0) {
+                stock_qty = parseInt(data.books[0].stock_qty);
+            }
+            if (newQuantity > stock_qty) {
+                showNotification(`Cannot set quantity. Only ${stock_qty} in stock.`, 'error');
+                return;
+            }
+            quantityElement.textContent = newQuantity;
+            // Update total
+            const priceElement = row.querySelector('td:nth-child(3)');
+            const price = parseFloat(priceElement.textContent.replace('₱', ''));
+            const totalElement = row.querySelector('td:nth-child(5)');
+            const newTotal = price * newQuantity;
+            totalElement.textContent = formatCurrency(newTotal);
+            updateTransactionSummary();
+        });
 }
 
 /**
